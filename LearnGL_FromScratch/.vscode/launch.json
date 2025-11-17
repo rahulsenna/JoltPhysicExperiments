@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "cppdbg",
+            "request": "launch",
+            "name": "Run Game",
+            "program": "${workspaceFolder}/build/game",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "MIMode": "lldb",
+            "preLaunchTask": "Build"
+        }
+    ]
+} 
