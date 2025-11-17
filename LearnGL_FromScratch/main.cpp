@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <iostream>
 
+#define INITIALIZE_MEMORY_ARENA
+#include "arena.h"
+
 #include "linmath.h"
 
 typedef struct Vertex
