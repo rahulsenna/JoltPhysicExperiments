@@ -4,11 +4,11 @@
             "type": "cppdbg",
             "request": "launch",
             "name": "Run Game",
-            "program": "${workspaceFolder}/build/game",
+            "program": "${workspaceFolder}/build/main",
             "args": [],
             "cwd": "${workspaceFolder}/build",
             "MIMode": "lldb",
-            "preLaunchTask": "Build"
+            "preLaunchTask": "BuildMain"
         }
     ]
 } 
