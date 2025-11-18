@@ -1,14 +1,7 @@
 #include "game_api.h"
-
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-#include <OpenGL/gl3.h>
-
-#define INITIALIZE_MEMORY_ARENA
+#include "graphics_api.h"
 #include "arena.h"
-
 #include "linmath.h"
-
 #include <stdio.h>
 
 extern "C"
@@ -26,13 +19,13 @@ extern "C"
 
   void game_update(GameMemory *memory, float delta_time)
   {
-    double current_time = glfwGetTime();
+    static double accumulated_time = 0.0;
+    accumulated_time += delta_time;
 
     temp_arena temp = begin_temp_memory(1024 * 1024);
-
     float *temp_calculations = push_temp_array(temp, 100, float);
 
-    memory->rotation_speed = (float)current_time;
+    memory->rotation_speed = (float)accumulated_time;
 
     mat4x4_identity(memory->model_matrix);
     mat4x4_rotate_Z(memory->model_matrix, memory->model_matrix, memory->rotation_speed);
@@ -40,17 +33,15 @@ extern "C"
     end_temp_memory(temp);
   }
 
-  void game_render(GameMemory *memory, GLuint program, GLint mvp_location, GLuint vertex_array)
+  void game_render(GameMemory *memory, RenderContext *ctx)
   {
-    int width, height;
-    GLFWwindow *window = glfwGetCurrentContext();
-    glfwGetFramebufferSize(window, &width, &height);
-    const float ratio = width / (float)height;
+    GraphicsAPI *gfx = ctx->gfx;
 
-    glUseProgram(program);
-    glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat *)&memory->model_matrix);
-    glBindVertexArray(vertex_array);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    gfx->use_program((GraphicsProgram)ctx->program);
+    gfx->set_uniform_mat4((GraphicsProgram)ctx->program, ctx->mvp_location,
+                          (const float *)&memory->model_matrix);
+    gfx->bind_vertex_array((GraphicsVertexArray)ctx->vertex_array);
+    gfx->draw_arrays(0, 3);
   }
 
   void game_hot_reloaded(GameMemory *memory)
@@ -63,7 +54,6 @@ extern "C"
   void game_shutdown(GameMemory *memory)
   {
     printf("Game shutdown\n");
-    // Don't free the arena - the host owns it
   }
 
 } // extern "C"

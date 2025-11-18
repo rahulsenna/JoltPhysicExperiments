@@ -1,32 +1,39 @@
-#pragma once
+#ifndef GAME_API_H
+#define GAME_API_H
 
-namespace arena
-{
-  class MemoryArena;
-}
-
+#include "arena.h"
 #include "linmath.h"
-#include <GLFW/glfw3.h>
 
-struct GameMemory
+struct GraphicsAPI;
+
+typedef struct GameMemory
 {
-  float rotation_speed;
-  mat4x4 model_matrix;
-  double last_change_time;
-
-  // Store arena pointer but DON'T own it
-  // The host owns the arena, we just use it
   arena::MemoryArena *arena;
-};
+  float rotation_speed;
+  double last_change_time;
+  mat4x4 model_matrix;
+} GameMemory;
 
-struct GameAPI
+typedef struct RenderContext
 {
-  void (*init)(GameMemory *memory, arena::MemoryArena *arena);
-  void (*update)(GameMemory *memory, float delta_time);
-  void (*render)(GameMemory *memory, GLuint program, GLint mvp_location, GLuint vertex_array);
-  void (*hot_reloaded)(GameMemory *memory);
-  void (*shutdown)(GameMemory *memory);
+  void *program;
+  void *vertex_array;
+  int mvp_location;
+  int width;
+  int height;
+  GraphicsAPI *gfx;
+} RenderContext;
 
+typedef struct GameAPI
+{
   void *dll_handle;
   time_t dll_timestamp;
-};
+
+  void (*init)(GameMemory *, arena::MemoryArena *);
+  void (*update)(GameMemory *, float);
+  void (*render)(GameMemory *, RenderContext *);
+  void (*hot_reloaded)(GameMemory *);
+  void (*shutdown)(GameMemory *);
+} GameAPI;
+
+#endif

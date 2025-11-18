@@ -1,6 +1,5 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-#include <OpenGL/gl3.h>
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -14,6 +13,8 @@
 #include "arena.h"
 #include "linmath.h"
 #include "game_api.h"
+#include "graphics_api.h"
+#include "graphics_api_gl.h"
 
 typedef struct Vertex
 {
@@ -88,7 +89,7 @@ GameAPI load_game_api(const char *dll_path)
 
   api.init = (void (*)(GameMemory *, arena::MemoryArena *))dlsym(api.dll_handle, "game_init");
   api.update = (void (*)(GameMemory *, float))dlsym(api.dll_handle, "game_update");
-  api.render = (void (*)(GameMemory *, GLuint, GLint, GLuint))dlsym(api.dll_handle, "game_render");
+  api.render = (void (*)(GameMemory *, RenderContext *))dlsym(api.dll_handle, "game_render");
   api.hot_reloaded = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_hot_reloaded");
   api.shutdown = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_shutdown");
 
@@ -114,12 +115,11 @@ int main()
   if (!glfwInit())
     exit(EXIT_FAILURE);
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  GraphicsAPI *gfx = create_graphics_api_opengl();
 
-  GLFWwindow *window = glfwCreateWindow(2880, 1864, "Motorcylce", NULL, NULL);
+  gfx->set_window_hints();
+
+  GLFWwindow *window = glfwCreateWindow(2880, 1864, "Motorcycle Adventure", NULL, NULL);
   if (!window)
   {
     glfwTerminate();
@@ -127,38 +127,31 @@ int main()
   }
 
   glfwSetKeyCallback(window, key_callback);
-  glfwMakeContextCurrent(window);
-  glfwSwapInterval(1);
 
-  GLuint vertex_buffer;
-  glGenBuffers(1, &vertex_buffer);
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  if (!gfx->init(window))
+  {
+    fprintf(stderr, "Failed to initialize graphics API\n");
+    exit(EXIT_FAILURE);
+  }
 
-  const GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
-  glCompileShader(vertex_shader);
+  GraphicsBuffer vertex_buffer = gfx->create_buffer(vertices, sizeof(vertices));
 
-  const GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
-  glCompileShader(fragment_shader);
+  GraphicsShader vertex_shader = gfx->create_shader(SHADER_TYPE_VERTEX, vertex_shader_text);
+  GraphicsShader fragment_shader = gfx->create_shader(SHADER_TYPE_FRAGMENT, fragment_shader_text);
 
-  const GLuint program = glCreateProgram();
-  glAttachShader(program, vertex_shader);
-  glAttachShader(program, fragment_shader);
-  glLinkProgram(program);
+  GraphicsProgram program = gfx->create_program(vertex_shader, fragment_shader);
 
-  const GLint mvp_location = glGetUniformLocation(program, "MVP");
-  const GLint vpos_location = glGetAttribLocation(program, "vPos");
-  const GLint vcol_location = glGetAttribLocation(program, "vCol");
+  int mvp_location = gfx->get_uniform_location(program, "MVP");
+  int vpos_location = gfx->get_attrib_location(program, "vPos");
+  int vcol_location = gfx->get_attrib_location(program, "vCol");
 
-  GLuint vertex_array;
-  glGenVertexArrays(1, &vertex_array);
-  glBindVertexArray(vertex_array);
-  glEnableVertexAttribArray(vpos_location);
-  glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, pos));
-  glEnableVertexAttribArray(vcol_location);
-  glVertexAttribPointer(vcol_location, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, col));
+  GraphicsVertexArray vertex_array = gfx->create_vertex_array();
+  gfx->bind_vertex_array(vertex_array);
+  gfx->bind_buffer(vertex_buffer);
+  gfx->enable_vertex_attrib(vpos_location);
+  gfx->vertex_attrib_pointer(vpos_location, 2, sizeof(Vertex), offsetof(Vertex, pos));
+  gfx->enable_vertex_attrib(vcol_location);
+  gfx->vertex_attrib_pointer(vcol_location, 3, sizeof(Vertex), offsetof(Vertex, col));
 
   GameMemory *game_memory = (GameMemory *)malloc(sizeof(GameMemory));
   memset(game_memory, 0, sizeof(GameMemory));
@@ -205,8 +198,8 @@ int main()
 
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
-    glViewport(0, 0, width, height);
-    glClear(GL_COLOR_BUFFER_BIT);
+    gfx->viewport(0, 0, width, height);
+    gfx->clear(0.0f, 0.0f, 0.0f, 1.0f);
 
     if (game_api.update)
     {
@@ -215,10 +208,17 @@ int main()
 
     if (game_api.render)
     {
-      game_api.render(game_memory, program, mvp_location, vertex_array);
+      RenderContext ctx = {
+          .program = program,
+          .vertex_array = vertex_array,
+          .mvp_location = mvp_location,
+          .width = width,
+          .height = height,
+          .gfx = gfx};
+      game_api.render(game_memory, &ctx);
     }
 
-    glfwSwapBuffers(window);
+    gfx->swap_buffers(window);
     glfwPollEvents();
   }
 
@@ -229,8 +229,15 @@ int main()
   unload_game_api(&game_api);
   free(game_memory);
 
-  glfwDestroyWindow(window);
+  gfx->destroy_vertex_array(vertex_array);
+  gfx->destroy_program(program);
+  gfx->destroy_shader(fragment_shader);
+  gfx->destroy_shader(vertex_shader);
+  gfx->destroy_buffer(vertex_buffer);
 
+  gfx->shutdown();
+
+  glfwDestroyWindow(window);
   glfwTerminate();
   exit(EXIT_SUCCESS);
 }
