@@ -29,7 +29,7 @@ typedef struct GameAPI
   void *dll_handle;
   time_t dll_timestamp;
 
-  void (*init)(GameMemory *, arena::MemoryArena *);
+  void (*init)(GameMemory *, arena::MemoryArena *, GraphicsAPI *);
   void (*update)(GameMemory *, float);
   void (*render)(GameMemory *, RenderContext *);
   void (*hot_reloaded)(GameMemory *);

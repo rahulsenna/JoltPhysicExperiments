@@ -468,6 +468,8 @@ namespace std
 
 #define push_struct(type) (type *)push_size_(sizeof(type))
 #define push_size(arena, size) push_size_(arena, Size)
+#define push_array(arena, count, type) (type *)push_size_(arena, (count * sizeof(type)))
+
 struct temp_arena
 {
     uint8_t *base;

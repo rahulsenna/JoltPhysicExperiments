@@ -2,6 +2,7 @@
 #define GRAPHICS_API_H
 
 #include <stdint.h>
+#include <stddef.h> 
 
 struct GLFWwindow;
 
@@ -28,6 +29,13 @@ struct GraphicsAPI
   GraphicsProgram (*create_program)(GraphicsShader vertex, GraphicsShader fragment);
   GraphicsVertexArray (*create_vertex_array)();
 
+  GraphicsBuffer (*create_index_buffer)(const void *data, size_t size);
+  void (*bind_index_buffer)(GraphicsBuffer buffer);
+  void (*draw_elements)(int count);
+
+  void (*set_uniform_mat4)(GraphicsProgram program, int location, const float *data);
+  void (*set_uniform_vec3)(GraphicsProgram program, int location, const float *data);
+
   void (*bind_buffer)(GraphicsBuffer buffer);
   void (*bind_vertex_array)(GraphicsVertexArray vao);
   void (*use_program)(GraphicsProgram program);
@@ -47,8 +55,6 @@ struct GraphicsAPI
   void (*destroy_shader)(GraphicsShader shader);
   void (*destroy_program)(GraphicsProgram program);
   void (*destroy_vertex_array)(GraphicsVertexArray vao);
-
-  void (*set_uniform_mat4)(GraphicsProgram program, int location, const float *data);
 };
 
 GraphicsAPI *create_graphics_api_opengl();

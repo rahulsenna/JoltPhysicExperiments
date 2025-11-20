@@ -28,25 +28,51 @@ static const Vertex vertices[3] =
      {{0.f, 0.6f}, {0.f, 0.f, 1.f}}};
 
 const char *vertex_shader_text = R"(
-    #version 330
-    uniform mat4 MVP;
-    in vec3 vCol;
-    in vec2 vPos;
-    out vec3 color;
-    void main()
-    {
-        gl_Position = MVP * vec4(vPos, 0.0, 1.0);
-        color = vCol;
-    }
+#version 410 core
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 normal;
+layout(location = 2) in vec3 color;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+out vec3 frag_normal;
+out vec3 frag_color;
+out vec3 frag_pos;
+
+void main() {
+    frag_pos = vec3(model * vec4(position, 1.0));
+    frag_normal = mat3(transpose(inverse(model))) * normal;
+    frag_color = color;
+    gl_Position = projection * view * vec4(frag_pos, 1.0);
+}
 )";
 const char *fragment_shader_text = R"(
-    #version 330
-    in vec3 color;
-    out vec4 fragment;
-    void main()
-    {
-        fragment = vec4(color, 1.0);
-    }
+#version 410 core
+in vec3 frag_normal;
+in vec3 frag_color;
+in vec3 frag_pos;
+
+uniform vec3 light_pos;
+uniform vec3 view_pos;
+
+out vec4 out_color;
+
+void main() {
+    vec3 norm = normalize(frag_normal);
+    vec3 light_dir = normalize(light_pos - frag_pos);
+    
+    float ambient = 0.3;
+    float diffuse = max(dot(norm, light_dir), 0.0) * 0.7;
+    
+    vec3 view_dir = normalize(view_pos - frag_pos);
+    vec3 reflect_dir = reflect(-light_dir, norm);
+    float specular = pow(max(dot(view_dir, reflect_dir), 0.0), 32.0) * 0.5;
+    
+    vec3 result = (ambient + diffuse + specular) * frag_color;
+    out_color = vec4(result, 1.0);
+}
 )";
 
 static void error_callback(int error, const char *description)
@@ -80,6 +106,16 @@ GameAPI load_game_api(const char *dll_path)
   snprintf(cmd, sizeof(cmd), "cp %s %s 2>/dev/null", dll_path, temp_path);
   system(cmd);
 
+   // Copy the dSYM bundle for debugging support
+  char dsym_src[256];
+  char dsym_dst[256];
+  snprintf(dsym_src, sizeof(dsym_src), "%s.dSYM", dll_path);
+  snprintf(dsym_dst, sizeof(dsym_dst), "%s.dSYM", temp_path);
+  
+  char dsym_cmd[512];
+  snprintf(dsym_cmd, sizeof(dsym_cmd), "cp -r %s %s 2>/dev/null", dsym_src, dsym_dst);
+  system(dsym_cmd);
+
   api.dll_handle = dlopen(temp_path, RTLD_NOW | RTLD_LOCAL);
   if (!api.dll_handle)
   {
@@ -87,7 +123,7 @@ GameAPI load_game_api(const char *dll_path)
     return api;
   }
 
-  api.init = (void (*)(GameMemory *, arena::MemoryArena *))dlsym(api.dll_handle, "game_init");
+  api.init = (void (*)(GameMemory *, arena::MemoryArena *, GraphicsAPI *))dlsym(api.dll_handle, "game_init");
   api.update = (void (*)(GameMemory *, float))dlsym(api.dll_handle, "game_update");
   api.render = (void (*)(GameMemory *, RenderContext *))dlsym(api.dll_handle, "game_render");
   api.hot_reloaded = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_hot_reloaded");
@@ -97,6 +133,18 @@ GameAPI load_game_api(const char *dll_path)
 
   printf("Game API loaded from %s\n", temp_path);
   return api;
+}
+
+void cleanup_old_temp_files(const char *dll_path)
+{
+  char pattern[256];
+  snprintf(pattern, sizeof(pattern), "%s.temp*", dll_path);
+
+  char cleanup_cmd[512];
+  snprintf(cleanup_cmd, sizeof(cleanup_cmd),
+           "ls -t %s.temp* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null",
+           dll_path);
+  system(cleanup_cmd);
 }
 
 void unload_game_api(GameAPI *api)
@@ -134,24 +182,9 @@ int main()
     exit(EXIT_FAILURE);
   }
 
-  GraphicsBuffer vertex_buffer = gfx->create_buffer(vertices, sizeof(vertices));
-
   GraphicsShader vertex_shader = gfx->create_shader(SHADER_TYPE_VERTEX, vertex_shader_text);
   GraphicsShader fragment_shader = gfx->create_shader(SHADER_TYPE_FRAGMENT, fragment_shader_text);
-
   GraphicsProgram program = gfx->create_program(vertex_shader, fragment_shader);
-
-  int mvp_location = gfx->get_uniform_location(program, "MVP");
-  int vpos_location = gfx->get_attrib_location(program, "vPos");
-  int vcol_location = gfx->get_attrib_location(program, "vCol");
-
-  GraphicsVertexArray vertex_array = gfx->create_vertex_array();
-  gfx->bind_vertex_array(vertex_array);
-  gfx->bind_buffer(vertex_buffer);
-  gfx->enable_vertex_attrib(vpos_location);
-  gfx->vertex_attrib_pointer(vpos_location, 2, sizeof(Vertex), offsetof(Vertex, pos));
-  gfx->enable_vertex_attrib(vcol_location);
-  gfx->vertex_attrib_pointer(vcol_location, 3, sizeof(Vertex), offsetof(Vertex, col));
 
   GameMemory *game_memory = (GameMemory *)malloc(sizeof(GameMemory));
   memset(game_memory, 0, sizeof(GameMemory));
@@ -159,10 +192,7 @@ int main()
   const char *dll_path = "./game.dylib";
   GameAPI game_api = load_game_api(dll_path);
 
-  if (game_api.init)
-  {
-    game_api.init(game_memory, &arena::GLOBAL_ARENA);
-  }
+  game_api.init(game_memory, &arena::GLOBAL_ARENA, gfx);
 
   double last_time = glfwGetTime();
   double last_check_time = last_time;
@@ -199,7 +229,7 @@ int main()
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
     gfx->viewport(0, 0, width, height);
-    gfx->clear(0.0f, 0.0f, 0.0f, 1.0f);
+    gfx->clear(0.0f, 0.0f, 0.0f, 1.0f);    
 
     if (game_api.update)
     {
@@ -210,8 +240,6 @@ int main()
     {
       RenderContext ctx = {
           .program = program,
-          .vertex_array = vertex_array,
-          .mvp_location = mvp_location,
           .width = width,
           .height = height,
           .gfx = gfx};
@@ -228,12 +256,7 @@ int main()
   }
   unload_game_api(&game_api);
   free(game_memory);
-
-  gfx->destroy_vertex_array(vertex_array);
-  gfx->destroy_program(program);
-  gfx->destroy_shader(fragment_shader);
-  gfx->destroy_shader(vertex_shader);
-  gfx->destroy_buffer(vertex_buffer);
+  cleanup_old_temp_files(dll_path);
 
   gfx->shutdown();
 

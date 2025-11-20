@@ -38,6 +38,7 @@ static bool gl_init(GLFWwindow *window)
 {
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
+  glEnable(GL_DEPTH_TEST);
 
   printf("OpenGL Renderer: %s\n", glGetString(GL_RENDERER));
   printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
@@ -119,6 +120,11 @@ static void gl_bind_buffer(GraphicsBuffer buffer)
 
 static void gl_bind_vertex_array(GraphicsVertexArray vao)
 {
+  if (vao == nullptr)
+  {
+    glBindVertexArray(0);
+    return;
+  }
   GLVertexArray *vertex_array = (GLVertexArray *)vao;
   glBindVertexArray(vertex_array->id);
 }
@@ -205,6 +211,33 @@ static void gl_set_uniform_mat4(GraphicsProgram program, int location, const flo
   glUniformMatrix4fv(location, 1, GL_FALSE, data);
 }
 
+static void gl_set_uniform_vec3(GraphicsProgram program, int location, const float *data)
+{
+  if (location == -1)
+    return;
+  glUniform3fv(location, 1, data);
+}
+
+static GraphicsBuffer gl_create_index_buffer(const void *data, size_t size)
+{
+  GLBuffer *buffer = (GLBuffer *)malloc(sizeof(GLBuffer));
+  glGenBuffers(1, &buffer->id);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+  return buffer;
+}
+
+static void gl_bind_index_buffer(GraphicsBuffer buffer)
+{
+  GLBuffer *buf = (GLBuffer *)buffer;
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf->id);
+}
+
+static void gl_draw_elements(int count)
+{
+  glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, 0);
+}
+
 // Global OpenGL API instance
 static GraphicsAPI s_opengl_api = {
     .init = gl_init,
@@ -230,6 +263,10 @@ static GraphicsAPI s_opengl_api = {
     .destroy_vertex_array = gl_destroy_vertex_array,
     .set_window_hints = gl_set_window_hints,
     .set_uniform_mat4 = gl_set_uniform_mat4,
+    .set_uniform_vec3 = gl_set_uniform_vec3,
+    .create_index_buffer = gl_create_index_buffer,
+    .bind_index_buffer = gl_bind_index_buffer,
+    .draw_elements = gl_draw_elements,
 };
 
 GraphicsAPI *create_graphics_api_opengl()
