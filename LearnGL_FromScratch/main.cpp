@@ -9,23 +9,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define INITIALIZE_MEMORY_ARENA
-#include "arena.h"
+#define ARENA_IMPLEMENTATION
+#include "arena2.h"
+
 #include "linmath.h"
 #include "game_api.h"
 #include "graphics_api.h"
 #include "graphics_api_gl.h"
-
-typedef struct Vertex
-{
-  vec2 pos;
-  vec3 col;
-} Vertex;
-
-static const Vertex vertices[3] =
-    {{{-0.6f, -0.4f}, {1.f, 0.f, 0.f}},
-     {{0.6f, -0.4f}, {0.f, 1.f, 0.f}},
-     {{0.f, 0.6f}, {0.f, 0.f, 1.f}}};
 
 const char *vertex_shader_text = R"(
 #version 410 core
@@ -106,12 +96,12 @@ GameAPI load_game_api(const char *dll_path)
   snprintf(cmd, sizeof(cmd), "cp %s %s 2>/dev/null", dll_path, temp_path);
   system(cmd);
 
-   // Copy the dSYM bundle for debugging support
+  // Copy the dSYM bundle for debugging support
   char dsym_src[256];
   char dsym_dst[256];
   snprintf(dsym_src, sizeof(dsym_src), "%s.dSYM", dll_path);
   snprintf(dsym_dst, sizeof(dsym_dst), "%s.dSYM", temp_path);
-  
+
   char dsym_cmd[512];
   snprintf(dsym_cmd, sizeof(dsym_cmd), "cp -r %s %s 2>/dev/null", dsym_src, dsym_dst);
   system(dsym_cmd);
@@ -123,7 +113,7 @@ GameAPI load_game_api(const char *dll_path)
     return api;
   }
 
-  api.init = (void (*)(GameMemory *, arena::MemoryArena *, GraphicsAPI *))dlsym(api.dll_handle, "game_init");
+  api.init = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_init");
   api.update = (void (*)(GameMemory *, float))dlsym(api.dll_handle, "game_update");
   api.render = (void (*)(GameMemory *, RenderContext *))dlsym(api.dll_handle, "game_render");
   api.hot_reloaded = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_hot_reloaded");
@@ -137,14 +127,7 @@ GameAPI load_game_api(const char *dll_path)
 
 void cleanup_old_temp_files(const char *dll_path)
 {
-  char pattern[256];
-  snprintf(pattern, sizeof(pattern), "%s.temp*", dll_path);
-
-  char cleanup_cmd[512];
-  snprintf(cleanup_cmd, sizeof(cleanup_cmd),
-           "ls -t %s.temp* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null",
-           dll_path);
-  system(cleanup_cmd);
+  system("rm -rf game.dylib.te*");
 }
 
 void unload_game_api(GameAPI *api)
@@ -158,6 +141,8 @@ void unload_game_api(GameAPI *api)
 
 int main()
 {
+  Arena *arena = arena_alloc(TB(64), KB(64), 0);
+
   glfwSetErrorCallback(error_callback);
 
   if (!glfwInit())
@@ -186,13 +171,14 @@ int main()
   GraphicsShader fragment_shader = gfx->create_shader(SHADER_TYPE_FRAGMENT, fragment_shader_text);
   GraphicsProgram program = gfx->create_program(vertex_shader, fragment_shader);
 
-  GameMemory *game_memory = (GameMemory *)malloc(sizeof(GameMemory));
-  memset(game_memory, 0, sizeof(GameMemory));
+  GameMemory *game_memory = push_struct(arena, GameMemory);
+  game_memory->arena = arena;
+  game_memory->gfx = gfx;
 
   const char *dll_path = "./game.dylib";
   GameAPI game_api = load_game_api(dll_path);
 
-  game_api.init(game_memory, &arena::GLOBAL_ARENA, gfx);
+  game_api.init(game_memory);
 
   double last_time = glfwGetTime();
   double last_check_time = last_time;
@@ -229,7 +215,7 @@ int main()
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
     gfx->viewport(0, 0, width, height);
-    gfx->clear(0.0f, 0.0f, 0.0f, 1.0f);    
+    gfx->clear(0.0f, 0.0f, 0.0f, 1.0f);
 
     if (game_api.update)
     {
@@ -255,7 +241,6 @@ int main()
     game_api.shutdown(game_memory);
   }
   unload_game_api(&game_api);
-  free(game_memory);
   cleanup_old_temp_files(dll_path);
 
   gfx->shutdown();

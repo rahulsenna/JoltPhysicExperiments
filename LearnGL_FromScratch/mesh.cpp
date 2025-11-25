@@ -1,17 +1,20 @@
 #include "mesh.h"
 #include <cmath>
 
-void Mesh::create(const std::vector<Vertex> &verts, const std::vector<unsigned int> &inds, GraphicsAPI *gfx)
+void Mesh::create(Arena *arena, Vertex *verts, s32 vert_count, u32 *inds, s32 ind_count, GraphicsAPI *gfx)
 {
   vertices = verts;
+  vertex_count = vert_count;
   indices = inds;
-  index_count = indices.size();
+  index_count = ind_count;
+  model = push_struct_no_zero(arena, mat4x4);
+  mat4x4_identity(*model);
 
   // Create vertex buffer
-  vbo = gfx->create_buffer(vertices.data(), vertices.size() * sizeof(Vertex));
+  vbo = gfx->create_buffer(vertices, vertex_count * sizeof(Vertex));
 
   // Create index buffer
-  ebo = gfx->create_index_buffer(indices.data(), indices.size() * sizeof(unsigned int));
+  ebo = gfx->create_index_buffer(indices, index_count * sizeof(u32));
 
   // Create and setup VAO
   vao = gfx->create_vertex_array();
@@ -54,250 +57,303 @@ void Mesh::destroy(GraphicsAPI *gfx)
   vbo = nullptr;
   ebo = nullptr;
 
-  vertices.clear();
-  indices.clear();
+  vertices = nullptr;
+  indices = nullptr;
+}
+
+void Mesh::translate(r32 x, r32 y, r32 z)
+{
+  mat4x4_translate(*model, x, y, z);
 }
 
 // ========== Ground ==========
-Mesh Mesh::create_ground(GraphicsAPI *gfx, float size, float r, float g, float b)
+Mesh Mesh::create_ground(Arena *arena, GraphicsAPI *gfx, r32 size, r32 r, r32 g, r32 b)
 {
-  std::vector<Vertex> vertices = {
-      {{-size, 0, -size}, {0, 1, 0}, {r, g, b}},
-      {{size, 0, -size}, {0, 1, 0}, {r, g, b}},
-      {{size, 0, size}, {0, 1, 0}, {r, g, b}},
-      {{-size, 0, size}, {0, 1, 0}, {r, g, b}},
-  };
+  Vertex *vertices = push_array(arena, Vertex, 4);
+  u32 *indices = push_array(arena, u32, 6);
 
-  std::vector<unsigned int> indices = {0, 1, 2, 0, 2, 3};
+  vertices[0] = {{-size, 0, -size}, {0, 1, 0}, {r, g, b}};
+  vertices[1] = {{size, 0, -size}, {0, 1, 0}, {r, g, b}};
+  vertices[2] = {{size, 0, size}, {0, 1, 0}, {r, g, b}};
+  vertices[3] = {{-size, 0, size}, {0, 1, 0}, {r, g, b}};
+
+  indices[0] = 0;
+  indices[1] = 1;
+  indices[2] = 2;
+  indices[3] = 0;
+  indices[4] = 2;
+  indices[5] = 3;
 
   Mesh mesh;
-  mesh.create(vertices, indices, gfx);
+  mesh.create(arena, vertices, 4, indices, 6, gfx);
   return mesh;
 }
 
 // ========== Box ==========
-Mesh Mesh::create_box(GraphicsAPI *gfx, float w, float h, float d, float r, float g, float b)
+Mesh Mesh::create_box(Arena *arena, GraphicsAPI *gfx, r32 w, r32 h, r32 d, r32 r, r32 g, r32 b)
 {
-  std::vector<Vertex> vertices;
+  Vertex *vertices = push_array(arena, Vertex, 24);
+  u32 *indices = push_array(arena, u32, 36);
+
+  s32 v = 0;
 
   // Front face
-  vertices.push_back({{-w, -h, d}, {0, 0, 1}, {r, g, b}});
-  vertices.push_back({{w, -h, d}, {0, 0, 1}, {r, g, b}});
-  vertices.push_back({{w, h, d}, {0, 0, 1}, {r, g, b}});
-  vertices.push_back({{-w, h, d}, {0, 0, 1}, {r, g, b}});
+  vertices[v++] = {{-w, -h, d}, {0, 0, 1}, {r, g, b}};
+  vertices[v++] = {{w, -h, d}, {0, 0, 1}, {r, g, b}};
+  vertices[v++] = {{w, h, d}, {0, 0, 1}, {r, g, b}};
+  vertices[v++] = {{-w, h, d}, {0, 0, 1}, {r, g, b}};
 
   // Back face
-  vertices.push_back({{w, -h, -d}, {0, 0, -1}, {r, g, b}});
-  vertices.push_back({{-w, -h, -d}, {0, 0, -1}, {r, g, b}});
-  vertices.push_back({{-w, h, -d}, {0, 0, -1}, {r, g, b}});
-  vertices.push_back({{w, h, -d}, {0, 0, -1}, {r, g, b}});
+  vertices[v++] = {{w, -h, -d}, {0, 0, -1}, {r, g, b}};
+  vertices[v++] = {{-w, -h, -d}, {0, 0, -1}, {r, g, b}};
+  vertices[v++] = {{-w, h, -d}, {0, 0, -1}, {r, g, b}};
+  vertices[v++] = {{w, h, -d}, {0, 0, -1}, {r, g, b}};
 
   // Top face
-  vertices.push_back({{-w, h, d}, {0, 1, 0}, {r, g, b}});
-  vertices.push_back({{w, h, d}, {0, 1, 0}, {r, g, b}});
-  vertices.push_back({{w, h, -d}, {0, 1, 0}, {r, g, b}});
-  vertices.push_back({{-w, h, -d}, {0, 1, 0}, {r, g, b}});
+  vertices[v++] = {{-w, h, d}, {0, 1, 0}, {r, g, b}};
+  vertices[v++] = {{w, h, d}, {0, 1, 0}, {r, g, b}};
+  vertices[v++] = {{w, h, -d}, {0, 1, 0}, {r, g, b}};
+  vertices[v++] = {{-w, h, -d}, {0, 1, 0}, {r, g, b}};
 
   // Bottom face
-  vertices.push_back({{-w, -h, -d}, {0, -1, 0}, {r, g, b}});
-  vertices.push_back({{w, -h, -d}, {0, -1, 0}, {r, g, b}});
-  vertices.push_back({{w, -h, d}, {0, -1, 0}, {r, g, b}});
-  vertices.push_back({{-w, -h, d}, {0, -1, 0}, {r, g, b}});
+  vertices[v++] = {{-w, -h, -d}, {0, -1, 0}, {r, g, b}};
+  vertices[v++] = {{w, -h, -d}, {0, -1, 0}, {r, g, b}};
+  vertices[v++] = {{w, -h, d}, {0, -1, 0}, {r, g, b}};
+  vertices[v++] = {{-w, -h, d}, {0, -1, 0}, {r, g, b}};
 
   // Right face
-  vertices.push_back({{w, -h, d}, {1, 0, 0}, {r, g, b}});
-  vertices.push_back({{w, -h, -d}, {1, 0, 0}, {r, g, b}});
-  vertices.push_back({{w, h, -d}, {1, 0, 0}, {r, g, b}});
-  vertices.push_back({{w, h, d}, {1, 0, 0}, {r, g, b}});
+  vertices[v++] = {{w, -h, d}, {1, 0, 0}, {r, g, b}};
+  vertices[v++] = {{w, -h, -d}, {1, 0, 0}, {r, g, b}};
+  vertices[v++] = {{w, h, -d}, {1, 0, 0}, {r, g, b}};
+  vertices[v++] = {{w, h, d}, {1, 0, 0}, {r, g, b}};
 
   // Left face
-  vertices.push_back({{-w, -h, -d}, {-1, 0, 0}, {r, g, b}});
-  vertices.push_back({{-w, -h, d}, {-1, 0, 0}, {r, g, b}});
-  vertices.push_back({{-w, h, d}, {-1, 0, 0}, {r, g, b}});
-  vertices.push_back({{-w, h, -d}, {-1, 0, 0}, {r, g, b}});
+  vertices[v++] = {{-w, -h, -d}, {-1, 0, 0}, {r, g, b}};
+  vertices[v++] = {{-w, -h, d}, {-1, 0, 0}, {r, g, b}};
+  vertices[v++] = {{-w, h, d}, {-1, 0, 0}, {r, g, b}};
+  vertices[v++] = {{-w, h, -d}, {-1, 0, 0}, {r, g, b}};
 
-  std::vector<unsigned int> indices;
-  for (int i = 0; i < 6; i++)
+  s32 idx = 0;
+  for (s32 i = 0; i < 6; i++)
   {
-    unsigned int base = i * 4;
-    indices.insert(indices.end(), {base + 0, base + 1, base + 2,
-                                   base + 0, base + 2, base + 3});
+    u32 base = i * 4;
+    indices[idx++] = base + 0;
+    indices[idx++] = base + 1;
+    indices[idx++] = base + 2;
+    indices[idx++] = base + 0;
+    indices[idx++] = base + 2;
+    indices[idx++] = base + 3;
   }
 
   Mesh mesh;
-  mesh.create(vertices, indices, gfx);
+  mesh.create(arena, vertices, 24, indices, 36, gfx);
   return mesh;
 }
 
 // ========== Sphere ==========
-Mesh Mesh::create_sphere(GraphicsAPI *gfx, float radius, int sectors, int stacks,
-                         float r, float g, float b)
+Mesh Mesh::create_sphere(Arena *arena, GraphicsAPI *gfx, r32 radius, s32 sectors, s32 stacks,
+                         r32 r, r32 g, r32 b)
 {
-  std::vector<Vertex> vertices;
-  std::vector<unsigned int> indices;
+  // Calculate exact sizes [web:54]
+  s32 vert_count = (stacks + 1) * (sectors + 1);
+  s32 ind_count = stacks * sectors * 6;
 
-  const float PI = 3.14159265359f;
+  Vertex *vertices = push_array(arena, Vertex, vert_count);
+  u32 *indices = push_array(arena, u32, ind_count);
 
-  for (int i = 0; i <= stacks; i++)
+  const r32 PI = 3.14159265359f;
+  s32 v = 0;
+
+  for (s32 i = 0; i <= stacks; i++)
   {
-    float phi = PI * i / stacks;
+    r32 phi = PI * i / stacks;
 
-    for (int j = 0; j <= sectors; j++)
+    for (s32 j = 0; j <= sectors; j++)
     {
-      float theta = 2.0f * PI * j / sectors;
+      r32 theta = 2.0f * PI * j / sectors;
 
-      float x = radius * sinf(phi) * cosf(theta);
-      float y = radius * cosf(phi);
-      float z = radius * sinf(phi) * sinf(theta);
+      r32 x = radius * sinf(phi) * cosf(theta);
+      r32 y = radius * cosf(phi);
+      r32 z = radius * sinf(phi) * sinf(theta);
 
-      float nx = x / radius;
-      float ny = y / radius;
-      float nz = z / radius;
+      r32 nx = x / radius;
+      r32 ny = y / radius;
+      r32 nz = z / radius;
 
-      vertices.push_back({{x, y, z}, {nx, ny, nz}, {r, g, b}});
+      vertices[v++] = {{x, y, z}, {nx, ny, nz}, {r, g, b}};
     }
   }
 
-  for (int i = 0; i < stacks; i++)
+  s32 idx = 0;
+  for (s32 i = 0; i < stacks; i++)
   {
-    for (int j = 0; j < sectors; j++)
+    for (s32 j = 0; j < sectors; j++)
     {
-      unsigned int first = i * (sectors + 1) + j;
-      unsigned int second = first + sectors + 1;
+      u32 first = i * (sectors + 1) + j;
+      u32 second = first + sectors + 1;
 
-      indices.insert(indices.end(), {first, second, first + 1});
-      indices.insert(indices.end(), {second, second + 1, first + 1});
+      indices[idx++] = first;
+      indices[idx++] = second;
+      indices[idx++] = first + 1;
+
+      indices[idx++] = second;
+      indices[idx++] = second + 1;
+      indices[idx++] = first + 1;
     }
   }
 
   Mesh mesh;
-  mesh.create(vertices, indices, gfx);
+  mesh.create(arena, vertices, vert_count, indices, ind_count, gfx);
   return mesh;
 }
 
 // ========== Cylinder ==========
-Mesh Mesh::create_cylinder(GraphicsAPI *gfx, float radius, float height, int sectors,
-                           float r, float g, float b)
+Mesh Mesh::create_cylinder(Arena *arena, GraphicsAPI *gfx, r32 radius, r32 height, s32 sectors,
+                           r32 r, r32 g, r32 b)
 {
-  std::vector<Vertex> vertices;
-  std::vector<unsigned int> indices;
+  // Calculate sizes: side (2*(sectors+1)) + top cap (1 + sectors+1) + bottom cap (1 + sectors+1)
+  s32 vert_count = 2 * (sectors + 1) + 2 * (sectors + 2);
+  s32 ind_count = sectors * 6 + sectors * 3 + sectors * 3; // side + top + bottom
 
-  const float PI = 3.14159265359f;
-  float half_height = height / 2.0f;
+  Vertex *vertices = push_array(arena, Vertex, vert_count);
+  u32 *indices = push_array(arena, u32, ind_count);
+
+  const r32 PI = 3.14159265359f;
+  r32 half_height = height / 2.0f;
+  s32 v = 0;
+  s32 idx = 0;
 
   // Side vertices
-  for (int i = 0; i <= sectors; i++)
+  for (s32 i = 0; i <= sectors; i++)
   {
-    float theta = 2.0f * PI * i / sectors;
-    float x = radius * cosf(theta);
-    float z = radius * sinf(theta);
-    float nx = x / radius;
-    float nz = z / radius;
+    r32 theta = 2.0f * PI * i / sectors;
+    r32 x = radius * cosf(theta);
+    r32 z = radius * sinf(theta);
+    r32 nx = x / radius;
+    r32 nz = z / radius;
 
-    vertices.push_back({{x, half_height, z}, {nx, 0, nz}, {r, g, b}});
-    vertices.push_back({{x, -half_height, z}, {nx, 0, nz}, {r, g, b}});
+    vertices[v++] = {{x, half_height, z}, {nx, 0, nz}, {r, g, b}};
+    vertices[v++] = {{x, -half_height, z}, {nx, 0, nz}, {r, g, b}};
   }
 
   // Side faces
-  for (int i = 0; i < sectors; i++)
+  for (s32 i = 0; i < sectors; i++)
   {
-    unsigned int base = i * 2;
-    indices.insert(indices.end(), {base, base + 2, base + 1,
-                                   base + 1, base + 2, base + 3});
+    u32 base = i * 2;
+    indices[idx++] = base;
+    indices[idx++] = base + 2;
+    indices[idx++] = base + 1;
+    indices[idx++] = base + 1;
+    indices[idx++] = base + 2;
+    indices[idx++] = base + 3;
   }
 
   // Top cap
-  unsigned int top_center = vertices.size();
-  vertices.push_back({{0, half_height, 0}, {0, 1, 0}, {r, g, b}});
+  u32 top_center = v;
+  vertices[v++] = {{0, half_height, 0}, {0, 1, 0}, {r, g, b}};
 
-  for (int i = 0; i <= sectors; i++)
+  for (s32 i = 0; i <= sectors; i++)
   {
-    float theta = 2.0f * PI * i / sectors;
-    float x = radius * cosf(theta);
-    float z = radius * sinf(theta);
-    vertices.push_back({{x, half_height, z}, {0, 1, 0}, {r, g, b}});
+    r32 theta = 2.0f * PI * i / sectors;
+    r32 x = radius * cosf(theta);
+    r32 z = radius * sinf(theta);
+    vertices[v++] = {{x, half_height, z}, {0, 1, 0}, {r, g, b}};
   }
 
-  for (int i = 0; i < sectors; i++)
+  for (s32 i = 0; i < sectors; i++)
   {
-    indices.insert(indices.end(), {top_center, top_center + i + 1, top_center + i + 2});
+    indices[idx++] = top_center;
+    indices[idx++] = top_center + i + 1;
+    indices[idx++] = top_center + i + 2;
   }
 
   // Bottom cap
-  unsigned int bottom_center = vertices.size();
-  vertices.push_back({{0, -half_height, 0}, {0, -1, 0}, {r, g, b}});
+  u32 bottom_center = v;
+  vertices[v++] = {{0, -half_height, 0}, {0, -1, 0}, {r, g, b}};
 
-  for (int i = 0; i <= sectors; i++)
+  for (s32 i = 0; i <= sectors; i++)
   {
-    float theta = 2.0f * PI * i / sectors;
-    float x = radius * cosf(theta);
-    float z = radius * sinf(theta);
-    vertices.push_back({{x, -half_height, z}, {0, -1, 0}, {r, g, b}});
+    r32 theta = 2.0f * PI * i / sectors;
+    r32 x = radius * cosf(theta);
+    r32 z = radius * sinf(theta);
+    vertices[v++] = {{x, -half_height, z}, {0, -1, 0}, {r, g, b}};
   }
 
-  for (int i = 0; i < sectors; i++)
+  for (s32 i = 0; i < sectors; i++)
   {
-    indices.insert(indices.end(), {bottom_center, bottom_center + i + 2, bottom_center + i + 1});
+    indices[idx++] = bottom_center;
+    indices[idx++] = bottom_center + i + 2;
+    indices[idx++] = bottom_center + i + 1;
   }
 
   Mesh mesh;
-  mesh.create(vertices, indices, gfx);
+  mesh.create(arena, vertices, v, indices, idx, gfx);
   return mesh;
 }
 
 // ========== Cone ==========
-Mesh Mesh::create_cone(GraphicsAPI *gfx, float radius, float height, int sectors,
-                       float r, float g, float b)
+Mesh Mesh::create_cone(Arena *arena, GraphicsAPI *gfx, r32 radius, r32 height, s32 sectors,
+                       r32 r, r32 g, r32 b)
 {
-  std::vector<Vertex> vertices;
-  std::vector<unsigned int> indices;
+  // Apex (1) + base circle (sectors+1) + bottom cap center (1) + bottom circle (sectors+1)
+  s32 vert_count = 1 + (sectors + 1) + 1 + (sectors + 1);
+  s32 ind_count = sectors * 3 + sectors * 3; // side + bottom
 
-  const float PI = 3.14159265359f;
-  float half_height = height / 2.0f;
+  Vertex *vertices = push_array(arena, Vertex, vert_count);
+  u32 *indices = push_array(arena, u32, ind_count);
+
+  const r32 PI = 3.14159265359f;
+  r32 half_height = height / 2.0f;
+  s32 v = 0;
+  s32 idx = 0;
 
   // Apex
-  unsigned int apex = vertices.size();
-  vertices.push_back({{0, half_height, 0}, {0, 1, 0}, {r, g, b}});
+  u32 apex = v;
+  vertices[v++] = {{0, half_height, 0}, {0, 1, 0}, {r, g, b}};
 
   // Base circle
-  for (int i = 0; i <= sectors; i++)
+  for (s32 i = 0; i <= sectors; i++)
   {
-    float theta = 2.0f * PI * i / sectors;
-    float x = radius * cosf(theta);
-    float z = radius * sinf(theta);
+    r32 theta = 2.0f * PI * i / sectors;
+    r32 x = radius * cosf(theta);
+    r32 z = radius * sinf(theta);
 
-    float slant = sqrtf(radius * radius + height * height);
-    float nx = (height * x) / (radius * slant);
-    float ny = radius / slant;
-    float nz = (height * z) / (radius * slant);
+    r32 slant = sqrtf(radius * radius + height * height);
+    r32 nx = (height * x) / (radius * slant);
+    r32 ny = radius / slant;
+    r32 nz = (height * z) / (radius * slant);
 
-    vertices.push_back({{x, -half_height, z}, {nx, ny, nz}, {r, g, b}});
+    vertices[v++] = {{x, -half_height, z}, {nx, ny, nz}, {r, g, b}};
   }
 
   // Side faces
-  for (int i = 0; i < sectors; i++)
+  for (s32 i = 0; i < sectors; i++)
   {
-    indices.insert(indices.end(), {apex, apex + i + 1, apex + i + 2});
+    indices[idx++] = apex;
+    indices[idx++] = apex + i + 1;
+    indices[idx++] = apex + i + 2;
   }
 
   // Bottom cap
-  unsigned int bottom_center = vertices.size();
-  vertices.push_back({{0, -half_height, 0}, {0, -1, 0}, {r, g, b}});
+  u32 bottom_center = v;
+  vertices[v++] = {{0, -half_height, 0}, {0, -1, 0}, {r, g, b}};
 
-  for (int i = 0; i <= sectors; i++)
+  for (s32 i = 0; i <= sectors; i++)
   {
-    float theta = 2.0f * PI * i / sectors;
-    float x = radius * cosf(theta);
-    float z = radius * sinf(theta);
-    vertices.push_back({{x, -half_height, z}, {0, -1, 0}, {r, g, b}});
+    r32 theta = 2.0f * PI * i / sectors;
+    r32 x = radius * cosf(theta);
+    r32 z = radius * sinf(theta);
+    vertices[v++] = {{x, -half_height, z}, {0, -1, 0}, {r, g, b}};
   }
 
-  for (int i = 0; i < sectors; i++)
+  for (s32 i = 0; i < sectors; i++)
   {
-    indices.insert(indices.end(), {bottom_center, bottom_center + i + 2, bottom_center + i + 1});
+    indices[idx++] = bottom_center;
+    indices[idx++] = bottom_center + i + 2;
+    indices[idx++] = bottom_center + i + 1;
   }
 
   Mesh mesh;
-  mesh.create(vertices, indices, gfx);
+  mesh.create(arena, vertices, v, indices, idx, gfx);
   return mesh;
 }

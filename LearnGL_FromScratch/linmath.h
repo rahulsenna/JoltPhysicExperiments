@@ -4,7 +4,7 @@
 #include <string.h>
 #include <math.h>
 #include <string.h>
-#include "arena.h"
+#include "arena2.h"
 
 /* 2021-03-21 Camilla Löwy <elmindreda@elmindreda.org>
  * - Replaced double constants with float equivalents
@@ -168,10 +168,10 @@ LINMATH_H_FUNC void mat4x4_scale_aniso(mat4x4 M, mat4x4 const a, float x, float 
 	vec4_scale(M[2], a[2], z);
 	vec4_dup(M[3], a[3]);
 }
-LINMATH_H_FUNC void mat4x4_mul(mat4x4 M, mat4x4 const a, mat4x4 const b)
+LINMATH_H_FUNC void mat4x4_mul(Arena *arena, mat4x4 M, mat4x4 const a, mat4x4 const b)
 {
-	temp_arena temp = begin_temp_memory(sizeof(mat4x4));
-	mat4x4 *temp_mat = push_temp_struct(temp, mat4x4);
+	Temp temp = temp_begin(arena);
+	mat4x4 *temp_mat = push_struct(temp.arena, mat4x4);
 	
 	int k, r, c;
 	for(c=0; c<4; ++c) for(r=0; r<4; ++r) {
@@ -181,7 +181,7 @@ LINMATH_H_FUNC void mat4x4_mul(mat4x4 M, mat4x4 const a, mat4x4 const b)
 	}
 	mat4x4_dup(M, *temp_mat);
 	
-	end_temp_memory(temp);
+	temp_end(temp);
 }
 LINMATH_H_FUNC void mat4x4_mul_vec4(vec4 r, mat4x4 const M, vec4 const v)
 {
@@ -215,7 +215,7 @@ LINMATH_H_FUNC void mat4x4_from_vec3_mul_outer(mat4x4 M, vec3 const a, vec3 cons
 	for(i=0; i<4; ++i) for(j=0; j<4; ++j)
 		M[i][j] = i<3 && j<3 ? a[i] * b[j] : 0.f;
 }
-LINMATH_H_FUNC void mat4x4_rotate(mat4x4 R, mat4x4 const M, float x, float y, float z, float angle)
+LINMATH_H_FUNC void mat4x4_rotate(Arena *arena, mat4x4 R, mat4x4 const M, float x, float y, float z, float angle)
 {
 	float s = sinf(angle);
 	float c = cosf(angle);
@@ -224,10 +224,10 @@ LINMATH_H_FUNC void mat4x4_rotate(mat4x4 R, mat4x4 const M, float x, float y, fl
 	if(vec3_len(u) > 1e-4) {
 		vec3_norm(u, u);
 		
-		temp_arena temp = begin_temp_memory(sizeof(mat4x4) * 3);
-		mat4x4 *T = push_temp_struct(temp, mat4x4);
-		mat4x4 *S = push_temp_struct(temp, mat4x4);
-		mat4x4 *C = push_temp_struct(temp, mat4x4);
+		Temp temp = temp_begin(arena);
+		mat4x4 *T = push_struct(temp.arena, mat4x4);
+		mat4x4 *S = push_struct(temp.arena, mat4x4);
+		mat4x4 *C = push_struct(temp.arena, mat4x4);
 		
 		mat4x4_from_vec3_mul_outer(*T, u, u);
 
@@ -246,62 +246,62 @@ LINMATH_H_FUNC void mat4x4_rotate(mat4x4 R, mat4x4 const M, float x, float y, fl
 		mat4x4_add(*T, *T, *S);
 
 		(*T)[3][3] = 1.f;
-		mat4x4_mul(R, M, *T);
+		mat4x4_mul(arena, R, M, *T);
 		
-		end_temp_memory(temp);
+		temp_end(temp);
 	} else {
 		mat4x4_dup(R, M);
 	}
 }
-LINMATH_H_FUNC void mat4x4_rotate_X(mat4x4 Q, mat4x4 const M, float angle)
+LINMATH_H_FUNC void mat4x4_rotate_X(Arena *arena, mat4x4 Q, mat4x4 const M, float angle)
 {
 	float s = sinf(angle);
 	float c = cosf(angle);
 	
-	temp_arena temp = begin_temp_memory(sizeof(mat4x4));
-	mat4x4 *R = push_temp_struct(temp, mat4x4);
+	Temp temp = temp_begin(arena);
+	mat4x4 *R = push_struct(temp.arena, mat4x4);
 	
 	(*R)[0][0] = 1.f; (*R)[0][1] = 0.f; (*R)[0][2] = 0.f; (*R)[0][3] = 0.f;
 	(*R)[1][0] = 0.f; (*R)[1][1] = c;   (*R)[1][2] = s;   (*R)[1][3] = 0.f;
 	(*R)[2][0] = 0.f; (*R)[2][1] = -s;  (*R)[2][2] = c;   (*R)[2][3] = 0.f;
 	(*R)[3][0] = 0.f; (*R)[3][1] = 0.f; (*R)[3][2] = 0.f; (*R)[3][3] = 1.f;
 	
-	mat4x4_mul(Q, M, *R);
-	end_temp_memory(temp);
+	mat4x4_mul(arena, Q, M, *R);
+	temp_end(temp);
 }
 
-LINMATH_H_FUNC void mat4x4_rotate_Y(mat4x4 Q, mat4x4 const M, float angle)
+LINMATH_H_FUNC void mat4x4_rotate_Y(Arena *arena, mat4x4 Q, mat4x4 const M, float angle)
 {
 	float s = sinf(angle);
 	float c = cosf(angle);
 	
-	temp_arena temp = begin_temp_memory(sizeof(mat4x4));
-	mat4x4 *R = push_temp_struct(temp, mat4x4);
+	Temp temp = temp_begin(arena);
+	mat4x4 *R = push_struct(temp.arena, mat4x4);
 	
 	(*R)[0][0] = c;   (*R)[0][1] = 0.f; (*R)[0][2] = -s;  (*R)[0][3] = 0.f;
 	(*R)[1][0] = 0.f; (*R)[1][1] = 1.f; (*R)[1][2] = 0.f; (*R)[1][3] = 0.f;
 	(*R)[2][0] = s;   (*R)[2][1] = 0.f; (*R)[2][2] = c;   (*R)[2][3] = 0.f;
 	(*R)[3][0] = 0.f; (*R)[3][1] = 0.f; (*R)[3][2] = 0.f; (*R)[3][3] = 1.f;
 	
-	mat4x4_mul(Q, M, *R);
-	end_temp_memory(temp);
+	mat4x4_mul(arena, Q, M, *R);
+	temp_end(temp);
 }
 
-LINMATH_H_FUNC void mat4x4_rotate_Z(mat4x4 Q, mat4x4 const M, float angle)
+LINMATH_H_FUNC void mat4x4_rotate_Z(Arena *arena, mat4x4 Q, mat4x4 const M, float angle)
 {
 	float s = sinf(angle);
 	float c = cosf(angle);
 	
-	temp_arena temp = begin_temp_memory(sizeof(mat4x4));
-	mat4x4 *R = push_temp_struct(temp, mat4x4);
+	Temp temp = temp_begin(arena);
+	mat4x4 *R = push_struct(temp.arena, mat4x4);
 	
 	(*R)[0][0] = c;   (*R)[0][1] = s;   (*R)[0][2] = 0.f; (*R)[0][3] = 0.f;
 	(*R)[1][0] = -s;  (*R)[1][1] = c;   (*R)[1][2] = 0.f; (*R)[1][3] = 0.f;
 	(*R)[2][0] = 0.f; (*R)[2][1] = 0.f; (*R)[2][2] = 1.f; (*R)[2][3] = 0.f;
 	(*R)[3][0] = 0.f; (*R)[3][1] = 0.f; (*R)[3][2] = 0.f; (*R)[3][3] = 1.f;
 	
-	mat4x4_mul(Q, M, *R);
-	end_temp_memory(temp);
+	mat4x4_mul(arena, Q, M, *R);
+	temp_end(temp);
 }
 
 LINMATH_H_FUNC void mat4x4_invert(mat4x4 T, mat4x4 const M)
@@ -599,12 +599,12 @@ LINMATH_H_FUNC void quat_from_mat4x4(quat q, mat4x4 const M)
 	q[3] = (M[p[2]][p[1]] - M[p[1]][p[2]])/(2.f*r);
 }
 
-LINMATH_H_FUNC void mat4x4_arcball(mat4x4 R, mat4x4 const M, vec2 const _a, vec2 const _b, float s)
+LINMATH_H_FUNC void mat4x4_arcball(Arena *arena, mat4x4 R, mat4x4 const M, vec2 const _a, vec2 const _b, float s)
 {
-	temp_arena temp = begin_temp_memory(sizeof(vec2) * 2 + sizeof(vec3) * 3);
+	Temp temp = temp_begin(arena);
 	
-	vec2 *a = push_temp_struct(temp, vec2);
-	vec2 *b = push_temp_struct(temp, vec2);
+	vec2 *a = push_struct(temp.arena, vec2);
+	vec2 *b = push_struct(temp.arena, vec2);
 	memcpy(*a, _a, sizeof(vec2));
 	memcpy(*b, _b, sizeof(vec2));
 	
@@ -623,9 +623,9 @@ LINMATH_H_FUNC void mat4x4_arcball(mat4x4 R, mat4x4 const M, vec2 const _a, vec2
 		vec2_norm(*b, *b);
 	}
 	
-	vec3 *a_ = push_temp_struct(temp, vec3);
-	vec3 *b_ = push_temp_struct(temp, vec3);
-	vec3 *c_ = push_temp_struct(temp, vec3);
+	vec3 *a_ = push_struct(temp.arena, vec3);
+	vec3 *b_ = push_struct(temp.arena, vec3);
+	vec3 *c_ = push_struct(temp.arena, vec3);
 	
 	(*a_)[0] = (*a)[0]; (*a_)[1] = (*a)[1]; (*a_)[2] = z_a;
 	(*b_)[0] = (*b)[0]; (*b_)[1] = (*b)[1]; (*b_)[2] = z_b;
@@ -633,8 +633,8 @@ LINMATH_H_FUNC void mat4x4_arcball(mat4x4 R, mat4x4 const M, vec2 const _a, vec2
 	vec3_mul_cross(*c_, *a_, *b_);
 
 	float const angle = acos(vec3_mul_inner(*a_, *b_)) * s;
-	mat4x4_rotate(R, M, (*c_)[0], (*c_)[1], (*c_)[2], angle);
+	mat4x4_rotate(arena, R, M, (*c_)[0], (*c_)[1], (*c_)[2], angle);
 	
-	end_temp_memory(temp);
+	temp_end(temp);
 }
 #endif
