@@ -11,13 +11,13 @@ void Mesh::create(Arena *arena, Vertex *verts, s32 vert_count, u32 *inds, s32 in
   mat4x4_identity(*model);
 
   // Create vertex buffer
-  vbo = gfx->create_buffer(vertices, vertex_count * sizeof(Vertex));
+  vbo = gfx->create_buffer(arena, vertices, vertex_count * sizeof(Vertex));
 
   // Create index buffer
-  ebo = gfx->create_index_buffer(indices, index_count * sizeof(u32));
+  ebo = gfx->create_index_buffer(arena, indices, index_count * sizeof(u32));
 
   // Create and setup VAO
-  vao = gfx->create_vertex_array();
+  vao = gfx->create_vertex_array(arena);
   gfx->bind_vertex_array(vao);
   gfx->bind_buffer(vbo);
   gfx->bind_index_buffer(ebo);

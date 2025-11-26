@@ -4,6 +4,8 @@
 #include "graphics_api_gl.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include "arena2.h"
 
 struct GLBuffer
 {
@@ -50,18 +52,18 @@ static void gl_shutdown()
 {
 }
 
-static GraphicsBuffer gl_create_buffer(const void *data, size_t size)
+static GraphicsBuffer gl_create_buffer(Arena *arena, const void *data, size_t size)
 {
-  GLBuffer *buffer = (GLBuffer *)malloc(sizeof(GLBuffer));
+  GLBuffer *buffer = (GLBuffer *)push_struct(arena, GLBuffer);
   glGenBuffers(1, &buffer->id);
   glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
   glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
   return buffer;
 }
 
-static GraphicsShader gl_create_shader(ShaderType type, const char *source)
+static GraphicsShader gl_create_shader(Arena *arena, ShaderType type, const char *source)
 {
-  GLShader *shader = (GLShader *)malloc(sizeof(GLShader));
+  GLShader *shader = (GLShader *)push_struct(arena, GLShader);
 
   GLenum gl_type = (type == SHADER_TYPE_VERTEX) ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
   shader->id = glCreateShader(gl_type);
@@ -80,9 +82,9 @@ static GraphicsShader gl_create_shader(ShaderType type, const char *source)
   return shader;
 }
 
-static GraphicsProgram gl_create_program(GraphicsShader vertex, GraphicsShader fragment)
+static GraphicsProgram gl_create_program(Arena *arena, GraphicsShader vertex, GraphicsShader fragment)
 {
-  GLProgram *program = (GLProgram *)malloc(sizeof(GLProgram));
+  GLProgram *program = (GLProgram *)push_struct(arena, GLProgram);
   program->id = glCreateProgram();
 
   GLShader *vs = (GLShader *)vertex;
@@ -105,9 +107,9 @@ static GraphicsProgram gl_create_program(GraphicsShader vertex, GraphicsShader f
   return program;
 }
 
-static GraphicsVertexArray gl_create_vertex_array()
+static GraphicsVertexArray gl_create_vertex_array(Arena *arena)
 {
-  GLVertexArray *vao = (GLVertexArray *)malloc(sizeof(GLVertexArray));
+  GLVertexArray *vao = (GLVertexArray *)push_struct(arena, GLVertexArray);
   glGenVertexArrays(1, &vao->id);
   return vao;
 }
@@ -135,40 +137,40 @@ static void gl_use_program(GraphicsProgram program)
   glUseProgram(prog->id);
 }
 
-static int gl_get_attrib_location(GraphicsProgram program, const char *name)
+static s32 gl_get_attrib_location(GraphicsProgram program, const char *name)
 {
   GLProgram *prog = (GLProgram *)program;
   return glGetAttribLocation(prog->id, name);
 }
 
-static int gl_get_uniform_location(GraphicsProgram program, const char *name)
+static s32 gl_get_uniform_location(GraphicsProgram program, const char *name)
 {
   GLProgram *prog = (GLProgram *)program;
   return glGetUniformLocation(prog->id, name);
 }
 
-static void gl_enable_vertex_attrib(int location)
+static void gl_enable_vertex_attrib(s32 location)
 {
   glEnableVertexAttribArray(location);
 }
 
-static void gl_vertex_attrib_pointer(int location, int size, int stride, size_t offset)
+static void gl_vertex_attrib_pointer(s32 location, s32 size, s32 stride, size_t offset)
 {
   glVertexAttribPointer(location, size, GL_FLOAT, GL_FALSE, stride, (void *)offset);
 }
 
-static void gl_clear(float r, float g, float b, float a)
+static void gl_clear(r32 r, r32 g, r32 b, r32 a)
 {
   glClearColor(r, g, b, a);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-static void gl_viewport(int x, int y, int width, int height)
+static void gl_viewport(s32 x, s32 y, s32 width, s32 height)
 {
   glViewport(x, y, width, height);
 }
 
-static void gl_draw_arrays(int first, int count)
+static void gl_draw_arrays(s32 first, s32 count)
 {
   glDrawArrays(GL_TRIANGLES, first, count);
 }
@@ -206,21 +208,53 @@ static void gl_destroy_vertex_array(GraphicsVertexArray vao)
   free(vertex_array);
 }
 
-static void gl_set_uniform_mat4(GraphicsProgram program, int location, const float *data)
+static void gl_set_uniform_mat4(GraphicsProgram program, s32 location, const r32 *data)
 {
   glUniformMatrix4fv(location, 1, GL_FALSE, data);
 }
 
-static void gl_set_uniform_vec3(GraphicsProgram program, int location, const float *data)
+static void gl_set_uniform_vec3(GraphicsProgram program, s32 location, const r32 *data)
 {
   if (location == -1)
     return;
   glUniform3fv(location, 1, data);
 }
 
-static GraphicsBuffer gl_create_index_buffer(const void *data, size_t size)
+static void gl_set_int(GraphicsProgram program, const char *name, s32 data)
 {
-  GLBuffer *buffer = (GLBuffer *)malloc(sizeof(GLBuffer));
+  s32 location = gl_get_uniform_location(program, name);
+  assert(location != -1 && "Uniform location not found");
+  glUniform1i(location, data);
+}
+static void gl_set_float(GraphicsProgram program, const char *name, r32 data)
+{
+  s32 location = gl_get_uniform_location(program, name);
+  assert(location != -1 && "Uniform location not found");
+  glUniform1f(location, data);
+}
+static void gl_set_vec3(GraphicsProgram program, const char *name, const r32 *data)
+{
+  s32 location = gl_get_uniform_location(program, name);
+  assert(location != -1 && "Uniform location not found");
+  glUniform3fv(location, 1, data);
+}
+static void gl_set_vec4(GraphicsProgram program, const char *name, const r32 *data)
+{
+  s32 location = gl_get_uniform_location(program, name);
+  assert(location != -1 && "Uniform location not found");
+  glUniform4fv(location, 1, data);
+}
+
+static void gl_set_mat4(GraphicsProgram program, const char *name, const r32 *data)
+{
+  s32 location = gl_get_uniform_location(program, name);
+  assert(location != -1 && "Uniform location not found");
+  glUniformMatrix4fv(location, 1, GL_FALSE, data);
+}
+
+static GraphicsBuffer gl_create_index_buffer(Arena *arena, const void *data, size_t size)
+{
+  GLBuffer *buffer = (GLBuffer *)push_struct(arena, GLBuffer);
   glGenBuffers(1, &buffer->id);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
@@ -233,7 +267,7 @@ static void gl_bind_index_buffer(GraphicsBuffer buffer)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf->id);
 }
 
-static void gl_draw_elements(int count)
+static void gl_draw_elements(s32 count)
 {
   glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, 0);
 }
@@ -263,6 +297,11 @@ static GraphicsAPI s_opengl_api = {
     .destroy_vertex_array = gl_destroy_vertex_array,
     .set_window_hints = gl_set_window_hints,
     .set_uniform_mat4 = gl_set_uniform_mat4,
+    .set_int = gl_set_int,
+    .set_float = gl_set_float,
+    .set_vec3 = gl_set_vec3,
+    .set_vec4 = gl_set_vec4,
+    .set_mat4 = gl_set_mat4,
     .set_uniform_vec3 = gl_set_uniform_vec3,
     .create_index_buffer = gl_create_index_buffer,
     .bind_index_buffer = gl_bind_index_buffer,

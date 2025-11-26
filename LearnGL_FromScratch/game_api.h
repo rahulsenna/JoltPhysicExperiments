@@ -4,6 +4,7 @@
 #include "arena2.h"
 #include "linmath.h"
 #include "mesh.h"
+#include "shader.h"
 #include <time.h>
 
 struct GraphicsAPI;
@@ -18,12 +19,9 @@ typedef struct GameMemory
 
 typedef struct RenderContext
 {
-  void *program;
-  void *vertex_array;
-  int mvp_location;
+  Shader *shader;
   int width;
   int height;
-  GraphicsAPI *gfx;
 } RenderContext;
 
 typedef struct GameAPI

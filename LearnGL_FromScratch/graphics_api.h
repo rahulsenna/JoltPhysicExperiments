@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h> 
+#include "arena2.h"
 
 struct GLFWwindow;
 
@@ -24,15 +25,20 @@ struct GraphicsAPI
   bool (*init)(GLFWwindow *window);
   void (*shutdown)();
 
-  GraphicsBuffer (*create_buffer)(const void *data, size_t size);
-  GraphicsShader (*create_shader)(ShaderType type, const char *source);
-  GraphicsProgram (*create_program)(GraphicsShader vertex, GraphicsShader fragment);
-  GraphicsVertexArray (*create_vertex_array)();
+  GraphicsBuffer (*create_buffer)(Arena *arena, const void *data, size_t size);
+  GraphicsShader (*create_shader)(Arena *arena, ShaderType type, const char *source);
+  GraphicsProgram (*create_program)(Arena *arena, GraphicsShader vertex, GraphicsShader fragment);
+  GraphicsVertexArray (*create_vertex_array)(Arena *arena);
 
-  GraphicsBuffer (*create_index_buffer)(const void *data, size_t size);
+  GraphicsBuffer (*create_index_buffer)(Arena *arena, const void *data, size_t size);
   void (*bind_index_buffer)(GraphicsBuffer buffer);
   void (*draw_elements)(int count);
 
+  void (*set_int)(GraphicsProgram program, const char *name, s32 data);
+  void (*set_float)(GraphicsProgram program, const char *name, r32 data);
+  void (*set_vec3)(GraphicsProgram program, const char *name, const r32 *data);
+  void (*set_vec4)(GraphicsProgram program, const char *name, const r32 *data);
+  void (*set_mat4)(GraphicsProgram program, const char *name, const r32 *data);
   void (*set_uniform_mat4)(GraphicsProgram program, int location, const float *data);
   void (*set_uniform_vec3)(GraphicsProgram program, int location, const float *data);
 

@@ -16,54 +16,7 @@
 #include "game_api.h"
 #include "graphics_api.h"
 #include "graphics_api_gl.h"
-
-const char *vertex_shader_text = R"(
-#version 410 core
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 normal;
-layout(location = 2) in vec3 color;
-
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-
-out vec3 frag_normal;
-out vec3 frag_color;
-out vec3 frag_pos;
-
-void main() {
-    frag_pos = vec3(model * vec4(position, 1.0));
-    frag_normal = mat3(transpose(inverse(model))) * normal;
-    frag_color = color;
-    gl_Position = projection * view * vec4(frag_pos, 1.0);
-}
-)";
-const char *fragment_shader_text = R"(
-#version 410 core
-in vec3 frag_normal;
-in vec3 frag_color;
-in vec3 frag_pos;
-
-uniform vec3 light_pos;
-uniform vec3 view_pos;
-
-out vec4 out_color;
-
-void main() {
-    vec3 norm = normalize(frag_normal);
-    vec3 light_dir = normalize(light_pos - frag_pos);
-    
-    float ambient = 0.3;
-    float diffuse = max(dot(norm, light_dir), 0.0) * 0.7;
-    
-    vec3 view_dir = normalize(view_pos - frag_pos);
-    vec3 reflect_dir = reflect(-light_dir, norm);
-    float specular = pow(max(dot(view_dir, reflect_dir), 0.0), 32.0) * 0.5;
-    
-    vec3 result = (ambient + diffuse + specular) * frag_color;
-    out_color = vec4(result, 1.0);
-}
-)";
+#include "shader.h"
 
 static void error_callback(int error, const char *description)
 {
@@ -167,9 +120,7 @@ int main()
     exit(EXIT_FAILURE);
   }
 
-  GraphicsShader vertex_shader = gfx->create_shader(SHADER_TYPE_VERTEX, vertex_shader_text);
-  GraphicsShader fragment_shader = gfx->create_shader(SHADER_TYPE_FRAGMENT, fragment_shader_text);
-  GraphicsProgram program = gfx->create_program(vertex_shader, fragment_shader);
+  Shader shader = Shader::create_basic(arena, gfx);
 
   GameMemory *game_memory = push_struct(arena, GameMemory);
   game_memory->arena = arena;
@@ -225,10 +176,10 @@ int main()
     if (game_api.render)
     {
       RenderContext ctx = {
-          .program = program,
+          .shader = &shader,
           .width = width,
           .height = height,
-          .gfx = gfx};
+      };
       game_api.render(game_memory, &ctx);
     }
 
