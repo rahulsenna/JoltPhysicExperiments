@@ -21,10 +21,51 @@ typedef struct GameMemory
   Arena *arena;
   GraphicsAPI *gfx;
   RenderContext *render_contexts;
-  u32 render_context_count = 0;
+  u32 render_context_count;
   s32 width, height;
+  vec3 camera;
+  r32 yaw, pitch;
 } GameMemory;
 
+typedef struct GameButtonState
+{
+    bool down;
+} GameButtonState;
+
+typedef struct GameControllerInput
+{
+  union
+  {
+    GameButtonState Buttons[12];
+    struct
+    {
+      GameButtonState move_up;
+      GameButtonState move_down;
+      GameButtonState move_left;
+      GameButtonState move_right;
+
+      GameButtonState action_down;
+      GameButtonState action_right;
+      GameButtonState action_left;
+      GameButtonState action_up;
+
+      GameButtonState left_shoulder;
+      GameButtonState right_shoulder;
+
+      GameButtonState start;
+      GameButtonState back;
+    };
+  };
+
+} GameControllerInput;
+
+typedef struct GameInput
+{
+  GameButtonState mouse_buttons[3];
+  GameControllerInput controllers;
+  r64 mouse_x, mouse_y, mouse_z;
+  r32 deltat_for_frame;
+} GameInput;
 
 typedef struct GameAPI
 {
@@ -32,7 +73,7 @@ typedef struct GameAPI
   time_t dll_timestamp;
 
   void (*init)(GameMemory *);
-  void (*update)(GameMemory *, float);
+  void (*update)(GameMemory *, GameInput *);
   void (*render)(GameMemory *);
   void (*hot_reloaded)(GameMemory *);
   void (*shutdown)(GameMemory *);

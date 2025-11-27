@@ -9,10 +9,34 @@
 
 extern "C"
 {
+  static void compute_camera_basis(r32 yaw, r32 pitch, vec3 forward, vec3 right)
+  {
+    r32 ryaw = yaw * DEG2RAD;
+    r32 rpitch = pitch * DEG2RAD;
+
+    forward[0] = cosf(ryaw) * cosf(rpitch);
+    forward[1] = sinf(rpitch);
+    forward[2] = sinf(ryaw) * cosf(rpitch);
+
+    vec3_norm(forward, forward);
+
+    vec3 up = {0.0f, 1.0f, 0.0f};
+
+    vec3_mul_cross(right, forward, up);
+    vec3_norm(right, right);
+  }
+
   void game_init(GameMemory *memory)
   {
     GraphicsAPI *gfx = memory->gfx;
     Arena *arena = memory->arena;
+
+    memory->camera[0] = 0.f;
+    memory->camera[1] = 2.5f;
+    memory->camera[2] = -10.0f;
+
+    memory->yaw = 90.0f;
+    memory->pitch = 0.0f;
 
     memory->render_context_count = 1;
     s32 r_idx = 0;
@@ -44,52 +68,93 @@ extern "C"
     printf("Game initialized\n");
   }
 
-  void game_update(GameMemory *memory, float delta_time)
+  void game_update(GameMemory *memory, GameInput *input)
   {
-    static double accumulated_time = 0.0;
-    accumulated_time += delta_time;
+    r32 dt = input->deltat_for_frame;
+    r32 speed = 5.0f;
 
-    Temp temp = temp_begin(memory->arena);
-    float *temp_calculations = push_array(temp.arena, float, 100);
+    const r32 sensitivity = 0.12f;
 
-    mat4x4 model;
-    mat4x4_identity(model);
-    mat4x4_rotate_Z(temp.arena, model, model, accumulated_time);
+    r32 xoffset = (r32)input->mouse_x * sensitivity;
+    r32 yoffset = (r32)input->mouse_y * sensitivity;
 
-    temp_end(temp);
+    memory->yaw += xoffset;
+    memory->pitch -= yoffset;
+
+    // clamp pitch
+    if (memory->pitch > 89.0f)
+      memory->pitch = 89.0f;
+    if (memory->pitch < -89.0f)
+      memory->pitch = -89.0f;
+
+    vec3 forward;
+    vec3 right;
+    compute_camera_basis(memory->yaw, memory->pitch, forward, right);
+
+    if (input->controllers.move_up.down)
+    {
+      memory->camera[0] += forward[0] * speed * dt;
+      memory->camera[1] += forward[1] * speed * dt;
+      memory->camera[2] += forward[2] * speed * dt;
+    }
+    if (input->controllers.move_down.down)
+    {
+      memory->camera[0] -= forward[0] * speed * dt;
+      memory->camera[1] -= forward[1] * speed * dt;
+      memory->camera[2] -= forward[2] * speed * dt;
+    }
+    if (input->controllers.move_right.down)
+    {
+      memory->camera[0] += right[0] * speed * dt;
+      memory->camera[1] += right[1] * speed * dt;
+      memory->camera[2] += right[2] * speed * dt;
+    }
+    if (input->controllers.move_left.down)
+    {
+      memory->camera[0] -= right[0] * speed * dt;
+      memory->camera[1] -= right[1] * speed * dt;
+      memory->camera[2] -= right[2] * speed * dt;
+    }
   }
 
   void game_render(GameMemory *memory)
   {
     GraphicsAPI *gfx = memory->gfx;
 
+    vec3 forward, right;
+    compute_camera_basis(memory->yaw, memory->pitch, forward, right);
+
+    vec3 target = {
+        memory->camera[0] + forward[0],
+        memory->camera[1] + forward[1],
+        memory->camera[2] + forward[2],
+    };
+
+    vec3 light_pos = {8.0f, 5.0f, 8.0f};
+    vec3 up = {0.0f, 1.0f, 0.0f};
+
+    mat4x4 view = {};
+    mat4x4_look_at(view, memory->camera, target, up);
+
+    mat4x4 perspective = {};
+    mat4x4_perspective(perspective, 1.047f, (r32)memory->width / memory->height, 0.1f, 100.0f);
+
     for (int i = 0; i < memory->render_context_count; ++i)
     {
-      RenderContext *ctx = (RenderContext *)&memory->render_contexts[i];
+      RenderContext *ctx = &memory->render_contexts[i];
       Shader *shader = ctx->shader;
 
       shader->use(gfx);
 
-      vec3 camera = {0.040f, 2.5f, -10.0f};
-      vec3 light_pos = {8.0f, 5.0f, 8.0f};
-      vec3 center = {0.0f, 0.0f, 0.0f};
-      vec3 up = {0.0f, 1.0f, 0.0f};
-      float target_x = 0.0f, target_y = 0.0f, target_z = 0.0f;
-
-      mat4x4 perspective = {};
-      mat4x4_perspective(perspective, 1.047f, (float)memory->width / memory->height, 0.1f, 100.0f);
-      mat4x4 view = {};
-      mat4x4_look_at(view, camera, center, up);
-
-      shader->set_mat4(gfx, "view", (const float *)view);
-      shader->set_mat4(gfx, "projection", (const float *)perspective);
+      shader->set_mat4(gfx, "view", (const r32 *)view);
+      shader->set_mat4(gfx, "projection", (const r32 *)perspective);
       shader->set_vec3(gfx, "light_pos", light_pos);
-      shader->set_vec3(gfx, "view_pos", camera);
+      shader->set_vec3(gfx, "view_pos", memory->camera);
 
-      for (int i = 0; i < ctx->objects_count; ++i)
+      for (int j = 0; j < ctx->objects_count; ++j)
       {
-        shader->set_mat4(gfx, "model", (const float *)ctx->objects[i].model);
-        ctx->objects[i].draw(gfx);
+        shader->set_mat4(gfx, "model", (const r32 *)ctx->objects[j].model);
+        ctx->objects[j].draw(gfx);
       }
     }
   }

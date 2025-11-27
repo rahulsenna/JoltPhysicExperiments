@@ -11,6 +11,8 @@
  * Modified to use custom memory arena for temporary allocations
  */
 
+#define DEG2RAD 0.017453292519943295f
+
 #ifdef LINMATH_NO_INLINE
 #define LINMATH_H_FUNC static
 #else

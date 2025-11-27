@@ -66,7 +66,7 @@ GameAPI load_game_api(const char *dll_path)
   }
 
   api.init = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_init");
-  api.update = (void (*)(GameMemory *, float))dlsym(api.dll_handle, "game_update");
+  api.update = (void (*)(GameMemory *, GameInput*))dlsym(api.dll_handle, "game_update");
   api.render = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_render");
   api.hot_reloaded = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_hot_reloaded");
   api.shutdown = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_shutdown");
@@ -90,6 +90,8 @@ void unload_game_api(GameAPI *api)
     api->dll_handle = nullptr;
   }
 }
+void get_inputs(GameInput *input, GLFWwindow *window);
+void mouse_callback(GLFWwindow *window, r64 xpos, r64 ypos);
 
 int main()
 {
@@ -122,6 +124,11 @@ int main()
   GameMemory *game_memory = push_struct(arena, GameMemory);
   game_memory->arena = arena;
   game_memory->gfx = gfx;
+
+  GameInput *input = push_struct(arena, GameInput);
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // lock cursor & enable relative mouse mode
+  glfwSetWindowUserPointer(window, input); // tell GLFW where GameInput struct lives
+  glfwSetCursorPosCallback(window, mouse_callback);
 
   const char *dll_path = "./game.dylib";
   GameAPI game_api = load_game_api(dll_path);
@@ -163,10 +170,17 @@ int main()
     glfwGetFramebufferSize(window, &game_memory->width, &game_memory->height);
     gfx->viewport(0, 0, game_memory->width, game_memory->height);
     gfx->clear(0.0f, 0.0f, 0.0f, 1.0f);
-
+    
+    glfwPollEvents();
     if (game_api.update)
     {
-      game_api.update(game_memory, delta_time);
+      input->deltat_for_frame = delta_time;
+      get_inputs(input, window);
+      game_api.update(game_memory, input);
+      
+      // reset mouse pointer deltas after update
+      input->mouse_x = 0.0;
+      input->mouse_y = 0.0;
     }
 
     if (game_api.render)
@@ -175,7 +189,6 @@ int main()
     }
 
     gfx->swap_buffers(window);
-    glfwPollEvents();
   }
 
   if (game_api.shutdown)
@@ -190,4 +203,51 @@ int main()
   glfwDestroyWindow(window);
   glfwTerminate();
   exit(EXIT_SUCCESS);
+}
+
+void get_inputs(GameInput *input, GLFWwindow *window)
+{
+  input->controllers.move_up.down = glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS;
+  input->controllers.move_down.down = glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS;
+  input->controllers.move_left.down = glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS;
+  input->controllers.move_right.down = glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS;
+
+  input->controllers.action_up.down = glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS;
+  input->controllers.action_down.down = glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS;
+  input->controllers.action_left.down = glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS;
+  input->controllers.action_right.down = glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS;
+
+  input->controllers.left_shoulder.down = glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS;
+  input->controllers.right_shoulder.down = glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS;
+
+  input->controllers.start.down = glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS;
+  input->controllers.back.down = glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS;
+
+  // Mouse buttons
+  input->mouse_buttons[0].down = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+  input->mouse_buttons[1].down = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+  input->mouse_buttons[2].down = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS;
+}
+
+r64 g_last_mouse_x = 0, g_last_mouse_y = 0;
+bool g_first_mouse = true;
+
+void mouse_callback(GLFWwindow *window, r64 xpos, r64 ypos)
+{
+  if (g_first_mouse)
+  {
+    g_last_mouse_x = xpos;
+    g_last_mouse_y = ypos;
+    g_first_mouse = false;
+  }
+
+  r64 xoffset = xpos - g_last_mouse_x;
+  r64 yoffset = ypos - g_last_mouse_y;
+
+  g_last_mouse_x = xpos;
+  g_last_mouse_y = ypos;
+
+  GameInput *input = (GameInput *)glfwGetWindowUserPointer(window);
+  input->mouse_x = xoffset;
+  input->mouse_y = yoffset;
 }
