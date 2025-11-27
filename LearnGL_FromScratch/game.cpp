@@ -5,6 +5,7 @@
 #include "mesh.h"
 #include "shader.h"
 #include <stdio.h>
+#include <assert.h>
 
 extern "C"
 {
@@ -13,19 +14,33 @@ extern "C"
     GraphicsAPI *gfx = memory->gfx;
     Arena *arena = memory->arena;
 
-    memory->objects = push_array(arena, Mesh, 5);
-    memory->objects_count = 0;
-    memory->objects[memory->objects_count++] = Mesh::create_ground(arena, gfx, 50.0f);
-    memory->objects[memory->objects_count++] = Mesh::create_box(arena, gfx, 1.0f, 1.0f, 1.0f);
-    memory->objects[memory->objects_count++] = Mesh::create_sphere(arena, gfx, 1.0f, 36, 18);
-    memory->objects[memory->objects_count++] = Mesh::create_cone(arena, gfx, 1.0f, 2);
-    memory->objects[memory->objects_count++] = Mesh::create_cylinder(arena, gfx, 1.0f, 2);
+    memory->render_context_count = 1;
+    s32 r_idx = 0;
+    memory->render_contexts = push_array(arena, RenderContext, memory->render_context_count);
+    RenderContext *ctx = (RenderContext *)&memory->render_contexts[r_idx++];
 
-    memory->objects[1].translate(-3.0f, 0.5f, 0.0f);
-    memory->objects[2].translate(.0f, 1.5f, 0.0f);
-    memory->objects[3].translate(3.0f, 0.5f, 0.0f);
-    memory->objects[4].translate(-6.0f, 0.5f, 0.0f);
+    ctx->shader = push_struct(arena, Shader);
+    *ctx->shader = Shader::create_basic(arena, gfx);
 
+    ctx->objects_count = 5;
+    s32 o_idx = 0;
+    ctx->objects = push_array(arena, Mesh, ctx->objects_count);
+    ctx->objects[o_idx++] = Mesh::create_ground(arena, gfx, 50.0f);
+    
+    ctx->objects[o_idx] = Mesh::create_box(arena, gfx, 1.0f, 1.0f, 1.0f);
+    ctx->objects[o_idx++].translate(-3.0f, 0.5f, 0.0f);
+
+    ctx->objects[o_idx] = Mesh::create_sphere(arena, gfx, 1.0f, 36, 18);
+    ctx->objects[o_idx++].translate(.0f, 1.5f, 0.0f);
+
+    ctx->objects[o_idx] = Mesh::create_cone(arena, gfx, 1.0f, 2);
+    ctx->objects[o_idx++].translate(3.0f, 0.5f, 0.0f);
+
+    ctx->objects[o_idx] = Mesh::create_cylinder(arena, gfx, 1.0f, 2);
+    ctx->objects[o_idx++].translate(-6.0f, 0.5f, 0.0f);
+    assert(o_idx == ctx->objects_count && "objects_count MISMATCH");
+
+    assert(r_idx == memory->render_context_count && "render_context_count MISMATCH");
     printf("Game initialized\n");
   }
 
@@ -44,33 +59,38 @@ extern "C"
     temp_end(temp);
   }
 
-  void game_render(GameMemory *memory, RenderContext *ctx)
+  void game_render(GameMemory *memory)
   {
     GraphicsAPI *gfx = memory->gfx;
-    Shader *shader = ctx->shader;
 
-    shader->use(gfx);
-
-    vec3 camera = {0.040f, 2.5f, -10.0f};
-    vec3 light_pos = {8.0f, 5.0f, 8.0f};
-    vec3 center = {0.0f, 0.0f, 0.0f};
-    vec3 up = {0.0f, 1.0f, 0.0f};
-    float target_x = 0.0f, target_y = 0.0f, target_z = 0.0f;
-
-    mat4x4 perspective = {};
-    mat4x4_perspective(perspective, 1.047f, (float)ctx->width / ctx->height, 0.1f, 100.0f);
-    mat4x4 view = {};
-    mat4x4_look_at(view, camera, center, up);
-    
-    shader->set_mat4(gfx, "view", (const float *)view);
-    shader->set_mat4(gfx, "projection", (const float *)perspective);
-    shader->set_vec3(gfx, "light_pos", light_pos);
-    shader->set_vec3(gfx, "view_pos", camera);
-
-    for (int i = 0; i < memory->objects_count; ++i)
+    for (int i = 0; i < memory->render_context_count; ++i)
     {
-      shader->set_mat4(gfx, "model", (const float *)memory->objects[i].model);
-      memory->objects[i].draw(gfx);
+      RenderContext *ctx = (RenderContext *)&memory->render_contexts[i];
+      Shader *shader = ctx->shader;
+
+      shader->use(gfx);
+
+      vec3 camera = {0.040f, 2.5f, -10.0f};
+      vec3 light_pos = {8.0f, 5.0f, 8.0f};
+      vec3 center = {0.0f, 0.0f, 0.0f};
+      vec3 up = {0.0f, 1.0f, 0.0f};
+      float target_x = 0.0f, target_y = 0.0f, target_z = 0.0f;
+
+      mat4x4 perspective = {};
+      mat4x4_perspective(perspective, 1.047f, (float)memory->width / memory->height, 0.1f, 100.0f);
+      mat4x4 view = {};
+      mat4x4_look_at(view, camera, center, up);
+
+      shader->set_mat4(gfx, "view", (const float *)view);
+      shader->set_mat4(gfx, "projection", (const float *)perspective);
+      shader->set_vec3(gfx, "light_pos", light_pos);
+      shader->set_vec3(gfx, "view_pos", camera);
+
+      for (int i = 0; i < ctx->objects_count; ++i)
+      {
+        shader->set_mat4(gfx, "model", (const float *)ctx->objects[i].model);
+        ctx->objects[i].draw(gfx);
+      }
     }
   }
 

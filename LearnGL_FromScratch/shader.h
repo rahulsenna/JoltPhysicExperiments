@@ -10,13 +10,9 @@ struct Shader
   // Opaque GPU handle (backend-agnostic)
   GraphicsProgram program;
   
-  // CPU-side data (optional - can free after compilation)
-  char *vertex_source;
-  char *fragment_source;
   b32 is_loaded;
 
-  Shader() : program(nullptr), vertex_source(nullptr), 
-             fragment_source(nullptr), is_loaded(false) {}
+  Shader() : program(nullptr), is_loaded(false) {}
 
   void create(Arena *arena, const char *vertex_path, const char *fragment_path, GraphicsAPI *gfx);
   void use(GraphicsAPI *gfx) const;

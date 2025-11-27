@@ -16,7 +16,6 @@
 #include "game_api.h"
 #include "graphics_api.h"
 #include "graphics_api_gl.h"
-#include "shader.h"
 
 static void error_callback(int error, const char *description)
 {
@@ -68,7 +67,7 @@ GameAPI load_game_api(const char *dll_path)
 
   api.init = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_init");
   api.update = (void (*)(GameMemory *, float))dlsym(api.dll_handle, "game_update");
-  api.render = (void (*)(GameMemory *, RenderContext *))dlsym(api.dll_handle, "game_render");
+  api.render = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_render");
   api.hot_reloaded = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_hot_reloaded");
   api.shutdown = (void (*)(GameMemory *))dlsym(api.dll_handle, "game_shutdown");
 
@@ -120,8 +119,6 @@ int main()
     exit(EXIT_FAILURE);
   }
 
-  Shader shader = Shader::create_basic(arena, gfx);
-
   GameMemory *game_memory = push_struct(arena, GameMemory);
   game_memory->arena = arena;
   game_memory->gfx = gfx;
@@ -163,9 +160,8 @@ int main()
       }
     }
 
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-    gfx->viewport(0, 0, width, height);
+    glfwGetFramebufferSize(window, &game_memory->width, &game_memory->height);
+    gfx->viewport(0, 0, game_memory->width, game_memory->height);
     gfx->clear(0.0f, 0.0f, 0.0f, 1.0f);
 
     if (game_api.update)
@@ -175,12 +171,7 @@ int main()
 
     if (game_api.render)
     {
-      RenderContext ctx = {
-          .shader = &shader,
-          .width = width,
-          .height = height,
-      };
-      game_api.render(game_memory, &ctx);
+      game_api.render(game_memory);
     }
 
     gfx->swap_buffers(window);

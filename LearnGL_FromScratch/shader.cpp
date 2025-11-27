@@ -26,9 +26,8 @@ static char *read_file_to_arena(Arena *arena, const char *filepath)
 void Shader::create(Arena *arena, const char *vertex_path, const char *fragment_path, GraphicsAPI *gfx)
 {
   Temp temp = temp_begin(arena);
-  vertex_source = read_file_to_arena(temp.arena, vertex_path);
-  fragment_source = read_file_to_arena(temp.arena, fragment_path);
-  
+  char *vertex_source = read_file_to_arena(temp.arena, vertex_path);
+  char *fragment_source = read_file_to_arena(temp.arena, fragment_path);
 
   if (!vertex_source || !fragment_source)
   {
