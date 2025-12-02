@@ -6,13 +6,20 @@
 #include "mesh.h"
 #include "shader.h"
 #include <time.h>
+#include "physics.h"
 
 struct GraphicsAPI;
+
+typedef struct
+{
+  Mesh *mesh;
+  JPH::BodyID body_id;
+} Object;
 
 typedef struct RenderContext
 {
   Shader *shader;
-  Mesh *objects;
+  Object *objects;
   u32 objects_count = 0;
 } RenderContext;
 
@@ -25,6 +32,7 @@ typedef struct GameMemory
   s32 width, height;
   vec3 camera;
   r32 yaw, pitch;
+  PhysicsState *physics;
 } GameMemory;
 
 typedef struct GameButtonState

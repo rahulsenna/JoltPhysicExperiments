@@ -6,7 +6,8 @@
                 "${workspaceFolder}/**",
                 "/opt/homebrew/include",
                 "~/Developer/imgui",
-                "~/Developer/imgui/backends"
+                "~/Developer/imgui/backends",
+                "~/Developer/JoltPhysics"
             ],
             "defines": [],
             "cStandard": "c17",

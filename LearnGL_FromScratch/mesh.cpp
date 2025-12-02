@@ -67,7 +67,7 @@ void Mesh::translate(r32 x, r32 y, r32 z)
 }
 
 // ========== Ground ==========
-Mesh Mesh::create_ground(Arena *arena, GraphicsAPI *gfx, r32 size, r32 r, r32 g, r32 b)
+Mesh *Mesh::create_ground(Arena *arena, GraphicsAPI *gfx, r32 size, r32 r, r32 g, r32 b)
 {
   Vertex *vertices = push_array(arena, Vertex, 4);
   u32 *indices = push_array(arena, u32, 6);
@@ -84,13 +84,13 @@ Mesh Mesh::create_ground(Arena *arena, GraphicsAPI *gfx, r32 size, r32 r, r32 g,
   indices[4] = 2;
   indices[5] = 3;
 
-  Mesh mesh;
-  mesh.create(arena, vertices, 4, indices, 6, gfx);
+  Mesh *mesh = push_struct(arena, Mesh);
+  mesh->create(arena, vertices, 4, indices, 6, gfx);
   return mesh;
 }
 
 // ========== Box ==========
-Mesh Mesh::create_box(Arena *arena, GraphicsAPI *gfx, r32 w, r32 h, r32 d, r32 r, r32 g, r32 b)
+Mesh *Mesh::create_box(Arena *arena, GraphicsAPI *gfx, r32 w, r32 h, r32 d, r32 r, r32 g, r32 b)
 {
   Vertex *vertices = push_array(arena, Vertex, 24);
   u32 *indices = push_array(arena, u32, 36);
@@ -145,14 +145,14 @@ Mesh Mesh::create_box(Arena *arena, GraphicsAPI *gfx, r32 w, r32 h, r32 d, r32 r
     indices[idx++] = base + 3;
   }
 
-  Mesh mesh;
-  mesh.create(arena, vertices, 24, indices, 36, gfx);
+  Mesh *mesh = push_struct(arena, Mesh);
+  mesh->create(arena, vertices, 24, indices, 36, gfx);
   return mesh;
 }
 
 // ========== Sphere ==========
-Mesh Mesh::create_sphere(Arena *arena, GraphicsAPI *gfx, r32 radius, s32 sectors, s32 stacks,
-                         r32 r, r32 g, r32 b)
+Mesh *Mesh::create_sphere(Arena *arena, GraphicsAPI *gfx, r32 radius, s32 sectors, s32 stacks,
+                          r32 r, r32 g, r32 b)
 {
   // Calculate exact sizes [web:54]
   s32 vert_count = (stacks + 1) * (sectors + 1);
@@ -202,13 +202,13 @@ Mesh Mesh::create_sphere(Arena *arena, GraphicsAPI *gfx, r32 radius, s32 sectors
     }
   }
 
-  Mesh mesh;
-  mesh.create(arena, vertices, vert_count, indices, ind_count, gfx);
+  Mesh *mesh = push_struct(arena, Mesh);
+  mesh->create(arena, vertices, vert_count, indices, ind_count, gfx);
   return mesh;
 }
 
 // ========== Cylinder ==========
-Mesh Mesh::create_cylinder(Arena *arena, GraphicsAPI *gfx, r32 radius, r32 height, s32 sectors,
+Mesh *Mesh::create_cylinder(Arena *arena, GraphicsAPI *gfx, r32 radius, r32 height, s32 sectors,
                            r32 r, r32 g, r32 b)
 {
   // Calculate sizes: side (2*(sectors+1)) + top cap (1 + sectors+1) + bottom cap (1 + sectors+1)
@@ -286,13 +286,13 @@ Mesh Mesh::create_cylinder(Arena *arena, GraphicsAPI *gfx, r32 radius, r32 heigh
     indices[idx++] = bottom_center + i + 1;
   }
 
-  Mesh mesh;
-  mesh.create(arena, vertices, v, indices, idx, gfx);
+  Mesh *mesh = push_struct(arena, Mesh);
+  mesh->create(arena, vertices, v, indices, idx, gfx);
   return mesh;
 }
 
 // ========== Cone ==========
-Mesh Mesh::create_cone(Arena *arena, GraphicsAPI *gfx, r32 radius, r32 height, s32 sectors,
+Mesh *Mesh::create_cone(Arena *arena, GraphicsAPI *gfx, r32 radius, r32 height, s32 sectors,
                        r32 r, r32 g, r32 b)
 {
   // Apex (1) + base circle (sectors+1) + bottom cap center (1) + bottom circle (sectors+1)
@@ -353,7 +353,7 @@ Mesh Mesh::create_cone(Arena *arena, GraphicsAPI *gfx, r32 radius, r32 height, s
     indices[idx++] = bottom_center + i + 1;
   }
 
-  Mesh mesh;
-  mesh.create(arena, vertices, v, indices, idx, gfx);
+  Mesh *mesh = push_struct(arena, Mesh);
+  mesh->create(arena, vertices, v, indices, idx, gfx);
   return mesh;
 }

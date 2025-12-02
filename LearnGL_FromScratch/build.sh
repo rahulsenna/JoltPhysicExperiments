@@ -37,7 +37,6 @@ echo "Building $OUTPUT..."
 $CXX $CXXFLAGS $DEFINES $INCLUDES $WARNINGS \
     main.cpp graphics_api_gl.cpp shader.cpp \
     $IMGUI_SOURCES \
-    $JOLT_LIB \
     $LDFLAGS $LIBS \
     -o $OUTPUT
 
