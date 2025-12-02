@@ -7,25 +7,96 @@
 #include <stdio.h>
 #include <assert.h>
 
-extern "C"
+static void compute_camera_basis(r32 yaw, r32 pitch, vec3 forward, vec3 right)
 {
-  static void compute_camera_basis(r32 yaw, r32 pitch, vec3 forward, vec3 right)
+  r32 ryaw = yaw * DEG2RAD;
+  r32 rpitch = pitch * DEG2RAD;
+
+  forward[0] = cosf(ryaw) * cosf(rpitch);
+  forward[1] = sinf(rpitch);
+  forward[2] = sinf(ryaw) * cosf(rpitch);
+
+  vec3_norm(forward, forward);
+
+  vec3 up = {0.0f, 1.0f, 0.0f};
+
+  vec3_mul_cross(right, forward, up);
+  vec3_norm(right, right);
+}
+
+void create_object(GameMemory *memory, JPH::BodyInterface &body_interface, Object *object, ObjectType type, CreateObjectParams params)
+{
+  GraphicsAPI *gfx = memory->gfx;
+  Arena *arena = memory->arena;
+
+  JPH::Vec3 jolt_pos(params.loc[0], params.loc[1], params.loc[2]);
+  JPH::EMotionType motion = (type == ObjectType::GROUND) ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic;
+  JPH::ObjectLayer layer = (type == ObjectType::GROUND) ? Layers::NON_MOVING : Layers::MOVING;
+  JPH::EActivation activation = (type == ObjectType::GROUND) ? JPH::EActivation::DontActivate : JPH::EActivation::Activate;
+
+  JPH::ShapeSettings::ShapeResult shape_result;
+
+  switch (type)
   {
-    r32 ryaw = yaw * DEG2RAD;
-    r32 rpitch = pitch * DEG2RAD;
+  case ObjectType::GROUND:
+  {
+    r32 half_size = params.size[0] * 0.5f;
+    object->mesh = Mesh::create_ground(arena, gfx, params.size[0], params.color[0], params.color[1], params.color[2]);
 
-    forward[0] = cosf(ryaw) * cosf(rpitch);
-    forward[1] = sinf(rpitch);
-    forward[2] = sinf(ryaw) * cosf(rpitch);
+    JPH::BoxShapeSettings shape(JPH::Vec3(half_size, 0.1f, half_size));
+    shape_result = shape.Create();
+    jolt_pos = JPH::Vec3(0, -0.1f, 0);
+    break;
+  }
+  case ObjectType::BOX:
+  {
+    object->mesh = Mesh::create_box(arena, gfx, params.size[0], params.size[1], params.size[2], params.color[0], params.color[1], params.color[2]);
+    object->mesh->translate(params.loc[0], params.loc[1], params.loc[2]);
 
-    vec3_norm(forward, forward);
+    JPH::BoxShapeSettings shape(JPH::Vec3(params.size[0] * 0.5f, params.size[1] * 0.5f, params.size[2] * 0.5f));
+    shape_result = shape.Create();
+    break;
+  }
+  case ObjectType::SPHERE:
+  {
+    object->mesh = Mesh::create_sphere(arena, gfx, params.size[0], 36, 18,
+                                       params.color[0], params.color[1], params.color[2]);
+    object->mesh->translate(params.loc[0], params.loc[1], params.loc[2]);
 
-    vec3 up = {0.0f, 1.0f, 0.0f};
+    JPH::SphereShapeSettings shape(params.size[0]);
+    shape_result = shape.Create();
+    break;
+  }
+  case ObjectType::CYLINDER:
+  {
+    object->mesh = Mesh::create_cylinder(arena, gfx, params.size[0], params.size[1], 36,
+                                         params.color[0], params.color[1], params.color[2]);
+    object->mesh->translate(params.loc[0], params.loc[1], params.loc[2]);
 
-    vec3_mul_cross(right, forward, up);
-    vec3_norm(right, right);
+    JPH::CylinderShapeSettings shape(params.size[1] * 0.5f, params.size[0]);
+    shape_result = shape.Create();
+    break;
+  }
+  case ObjectType::CONE:
+  {
+    object->mesh = Mesh::create_cone(arena, gfx, params.size[0], params.size[1], 36,
+                                     params.color[0], params.color[1], params.color[2]);
+    object->mesh->translate(params.loc[0], params.loc[1], params.loc[2]);
+
+    // Approximate cone as cylinder (Jolt doesn't have native cone)
+    JPH::CylinderShapeSettings shape(params.size[1] * 0.5f, params.size[0]);
+    shape_result = shape.Create();
+    break;
+  }
   }
 
+  JPH::BodyCreationSettings body_settings(shape_result.Get(), jolt_pos, JPH::Quat::sIdentity(), motion, layer);
+  object->body_id = body_interface.CreateAndAddBody(body_settings, activation);
+  object->type = type;
+}
+
+extern "C"
+{
   void game_init(GameMemory *memory)
   {
     GraphicsAPI *gfx = memory->gfx;
@@ -76,8 +147,7 @@ extern "C"
     memory->render_contexts = push_array(arena, RenderContext, memory->render_context_count);
     RenderContext *ctx = (RenderContext *)&memory->render_contexts[r_idx++];
 
-    ctx->shader = push_struct(arena, Shader);
-    *ctx->shader = Shader::create_basic(arena, gfx);
+    ctx->shader = Shader::create_basic(arena, gfx);
 
     ctx->objects_count = 5;
     s32 o_idx = 0;
@@ -85,79 +155,15 @@ extern "C"
 
     JPH::BodyInterface &body_interface = memory->physics->physics_system->GetBodyInterface();
 
-    // Ground (static)
-    ctx->objects[o_idx].mesh = Mesh::create_ground(arena, gfx, 50.0f);
-    {
-      JPH::BoxShapeSettings ground_shape(JPH::Vec3(25.0f, 0.1f, 25.0f));
-      JPH::ShapeSettings::ShapeResult shape_result = ground_shape.Create();
-      JPH::BodyCreationSettings ground_settings(shape_result.Get(), JPH::Vec3(0, -0.1f, 0),
-                                                JPH::Quat::sIdentity(),
-                                                JPH::EMotionType::Static,
-                                                Layers::NON_MOVING);
-      ctx->objects[o_idx].body_id = body_interface.CreateAndAddBody(ground_settings, JPH::EActivation::DontActivate);
-    }
-    o_idx++;
-
-    // Box (dynamic)
-    ctx->objects[o_idx].mesh = Mesh::create_box(arena, gfx, 1.0f, 1.0f, 1.0f);
-    ctx->objects[o_idx].mesh->translate(-3.0f, 0.f, 0.0f);
-    {
-      JPH::BoxShapeSettings box_shape(JPH::Vec3(1.0f, 1.0f, 1.0f));
-      JPH::ShapeSettings::ShapeResult shape_result = box_shape.Create();
-      JPH::BodyCreationSettings box_settings(shape_result.Get(), JPH::Vec3(-3.0f, 10.1f, 0.0f),
-                                             JPH::Quat::sIdentity(),
-                                             JPH::EMotionType::Dynamic,
-                                             Layers::MOVING);
-      ctx->objects[o_idx].body_id = body_interface.CreateAndAddBody(box_settings, JPH::EActivation::Activate);
-    }
-    o_idx++;
-
-    // Sphere (dynamic)
-    ctx->objects[o_idx].mesh = Mesh::create_sphere(arena, gfx, 1.0f, 36, 18);
-    ctx->objects[o_idx].mesh->translate(0.0f, 1.5f, 0.0f);
-    {
-      JPH::SphereShapeSettings sphere_shape(1.0f);
-      JPH::ShapeSettings::ShapeResult shape_result = sphere_shape.Create();
-      JPH::BodyCreationSettings sphere_settings(shape_result.Get(), JPH::Vec3(0.0f, 10.f, 0.0f),
-                                                JPH::Quat::sIdentity(),
-                                                JPH::EMotionType::Dynamic,
-                                                Layers::MOVING);
-      ctx->objects[o_idx].body_id = body_interface.CreateAndAddBody(sphere_settings, JPH::EActivation::Activate);
-    }
-    o_idx++;
-
-    // Cone (dynamic, approximate as cylinder)
-    ctx->objects[o_idx].mesh = Mesh::create_cone(arena, gfx, 1.0f, 2);
-    ctx->objects[o_idx].mesh->translate(3.0f, 0.5f, 0.0f);
-    {
-      JPH::CylinderShapeSettings cone_shape(1.0f, 0.5f);
-      JPH::ShapeSettings::ShapeResult shape_result = cone_shape.Create();
-      JPH::BodyCreationSettings cone_settings(shape_result.Get(), JPH::Vec3(3.0f, 10.0f, 0.0f),
-                                              JPH::Quat::sIdentity(),
-                                              JPH::EMotionType::Dynamic,
-                                              Layers::MOVING);
-      ctx->objects[o_idx].body_id = body_interface.CreateAndAddBody(cone_settings, JPH::EActivation::Activate);
-    }
-    o_idx++;
-
-    // Cylinder (dynamic)
-    ctx->objects[o_idx].mesh = Mesh::create_cylinder(arena, gfx, 1.0f, 2);
-    ctx->objects[o_idx].mesh->translate(-6.0f, 0.5f, 0.0f);
-    {
-      JPH::CylinderShapeSettings cylinder_shape(1.0f, 0.5f);
-      JPH::ShapeSettings::ShapeResult shape_result = cylinder_shape.Create();
-      JPH::BodyCreationSettings cylinder_settings(shape_result.Get(), JPH::Vec3(-6.0f, 10.0f, 0.0f),
-                                                  JPH::Quat::sIdentity(),
-                                                  JPH::EMotionType::Dynamic,
-                                                  Layers::MOVING);
-      ctx->objects[o_idx].body_id = body_interface.CreateAndAddBody(cylinder_settings, JPH::EActivation::Activate);
-    }
-    o_idx++;
+    create_object(memory, body_interface, &ctx->objects[o_idx++], ObjectType::GROUND, {{50.0f}, {}, {.2, .3, .2}});
+    create_object(memory, body_interface, &ctx->objects[o_idx++], ObjectType::BOX, {{1.0f, 1.0f, 1.0f}, {.0f, 10, 0.0f}, {.8, .2, .2}});
+    create_object(memory, body_interface, &ctx->objects[o_idx++], ObjectType::SPHERE, {{1.0f}, {0.0f, 10, 0.0f}, {.2, .2, .8}});
+    create_object(memory, body_interface, &ctx->objects[o_idx++], ObjectType::CONE, {{1.0f, 2}, {0, 10.f, 0.0f}, {.8, .4, .2}});
+    create_object(memory, body_interface, &ctx->objects[o_idx++], ObjectType::CYLINDER, {{1.0f, 2}, {0, 10.f, 0.0f}, {.8, .8, .2}});
 
     memory->physics->physics_system->OptimizeBroadPhase();
 
     assert(o_idx <= ctx->objects_count && "objects_count MISMATCH");
-
     assert(r_idx == memory->render_context_count && "render_context_count MISMATCH");
     printf("Game initialized\n");
   }

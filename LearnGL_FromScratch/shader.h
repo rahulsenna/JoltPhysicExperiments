@@ -28,8 +28,8 @@ struct Shader
   void set_mat4(GraphicsAPI *gfx, const char *name, const r32 *mat) const;
 
   // Static helper to load common shaders
-  static Shader create_basic(Arena *arena, GraphicsAPI *gfx);
-  static Shader create_lit(Arena *arena, GraphicsAPI *gfx);
+  static Shader *create_basic(Arena *arena, GraphicsAPI *gfx);
+  static Shader *create_lit(Arena *arena, GraphicsAPI *gfx);
 };
 
 #endif // SHADER_H

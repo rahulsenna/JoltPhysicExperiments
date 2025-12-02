@@ -10,10 +10,26 @@
 
 struct GraphicsAPI;
 
+enum class ObjectType
+{
+  GROUND = 0,
+  BOX,
+  SPHERE,
+  CYLINDER,
+  CONE,
+};
+
+struct CreateObjectParams
+{
+  vec3 size;
+  vec3 loc = {0, 0, 0};
+  vec3 color = {0.8f, 0.8f, 0.8f};
+};
 typedef struct
 {
   Mesh *mesh;
   JPH::BodyID body_id;
+  ObjectType type;
 } Object;
 
 typedef struct RenderContext

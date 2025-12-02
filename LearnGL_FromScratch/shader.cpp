@@ -97,16 +97,16 @@ void Shader::set_mat4(GraphicsAPI *gfx, const char *name, const r32 *mat) const
   gfx->set_mat4(program, name, mat);
 }
 
-Shader Shader::create_basic(Arena *arena, GraphicsAPI *gfx)
+Shader *Shader::create_basic(Arena *arena, GraphicsAPI *gfx)
 {
-  Shader shader;
-  shader.create(arena, "shaders/basic.vert", "shaders/basic.frag", gfx);
+  Shader *shader = push_struct(arena, Shader);
+  shader->create(arena, "shaders/basic.vert", "shaders/basic.frag", gfx);
   return shader;
 }
 
-Shader Shader::create_lit(Arena *arena, GraphicsAPI *gfx)
+Shader *Shader::create_lit(Arena *arena, GraphicsAPI *gfx)
 {
-  Shader shader;
-  shader.create(arena, "shaders/lit.vert", "shaders/lit.frag", gfx);
+  Shader *shader = push_struct(arena, Shader);
+  shader->create(arena, "shaders/lit.vert", "shaders/lit.frag", gfx);
   return shader;
 }
