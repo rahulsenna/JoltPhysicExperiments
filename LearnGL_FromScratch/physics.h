@@ -80,7 +80,7 @@ public:
   }
 };
 
-typedef struct
+typedef struct PhysicsState
 {
   JPH::Factory *factory_instance;
   JoltTempArenaAllocator *temp_allocator;

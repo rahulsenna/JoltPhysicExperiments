@@ -9,7 +9,7 @@ OUTPUT="$BUILD_DIR/game.dylib"
 # Compiler flags
 CXX="clang++"
 CXXFLAGS="-std=c++23 -arch arm64 -Wno-error -dynamiclib  -undefined dynamic_lookup -fPIC -g -O0"
-DEFINES="-DJPH_OBJECT_STREAM -D_DEBUG -DGL_SILENCE_DEPRECATION"
+DEFINES="-DJPH_OBJECT_STREAM -DJPH_DEBUG_RENDERER -D_DEBUG -DGL_SILENCE_DEPRECATION"
 INCLUDES="-I$JOLT_ROOT -I/opt/homebrew/include"
 WARNINGS="-Wno-all"
 

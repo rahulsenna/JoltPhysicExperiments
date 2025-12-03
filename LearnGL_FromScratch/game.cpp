@@ -6,6 +6,7 @@
 #include "shader.h"
 #include <stdio.h>
 #include <assert.h>
+#include "physics.h"
 
 static void compute_camera_basis(r32 yaw, r32 pitch, vec3 forward, vec3 right)
 {
@@ -91,7 +92,8 @@ void create_object(GameMemory *memory, JPH::BodyInterface &body_interface, Objec
   }
 
   JPH::BodyCreationSettings body_settings(shape_result.Get(), jolt_pos, JPH::Quat::sIdentity(), motion, layer);
-  object->body_id = body_interface.CreateAndAddBody(body_settings, activation);
+  object->body_id = push_struct(arena, JPH::BodyID);
+  *object->body_id = body_interface.CreateAndAddBody(body_settings, activation);
   object->type = type;
 }
 
@@ -228,8 +230,8 @@ extern "C"
       RenderContext *ctx = &memory->render_contexts[i];
       for (int j = 0; j < ctx->objects_count; ++j)
       {
-        JPH::Vec3 position = body_interface.GetPosition(ctx->objects[j].body_id);
-        JPH::Quat rotation = body_interface.GetRotation(ctx->objects[j].body_id);
+        JPH::Vec3 position = body_interface.GetPosition(*ctx->objects[j].body_id);
+        JPH::Quat rotation = body_interface.GetRotation(*ctx->objects[j].body_id);
 
         quat q = {rotation.GetX(), rotation.GetY(), rotation.GetZ(), rotation.GetW()};
 

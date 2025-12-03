@@ -6,9 +6,11 @@
 #include "mesh.h"
 #include "shader.h"
 #include <time.h>
-#include "physics.h"
+
 
 struct GraphicsAPI;
+struct PhysicsState;
+namespace JPH { class BodyID; }
 
 enum class ObjectType
 {
@@ -28,7 +30,7 @@ struct CreateObjectParams
 typedef struct
 {
   Mesh *mesh;
-  JPH::BodyID body_id;
+  JPH::BodyID *body_id;
   ObjectType type;
 } Object;
 

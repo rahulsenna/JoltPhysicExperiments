@@ -1,8 +1,6 @@
 #!/bin/bash
 
 # Configuration
-JOLT_ROOT="$HOME/Developer/JoltPhysics"
-JOLT_LIB="$JOLT_ROOT/Build/XCode_MacOS/libJolt.a"
 BUILD_DIR="build"
 IMGUI_ROOT="$HOME/Developer/imgui"
 OUTPUT="$BUILD_DIR/main"
@@ -10,8 +8,8 @@ OUTPUT="$BUILD_DIR/main"
 # Compiler flags
 CXX="clang++"
 CXXFLAGS="-std=c++23 -arch arm64 -Wno-error -g -O0"
-DEFINES="-DJPH_OBJECT_STREAM -D_DEBUG -DGL_SILENCE_DEPRECATION"
-INCLUDES="-I$JOLT_ROOT -I/opt/homebrew/include -I$IMGUI_ROOT -I$IMGUI_ROOT/backends"
+DEFINES="-D_DEBUG -DGL_SILENCE_DEPRECATION"
+INCLUDES="-I/opt/homebrew/include -I$IMGUI_ROOT -I$IMGUI_ROOT/backends"
 WARNINGS="-Wno-all"
 
 # Linker flags
