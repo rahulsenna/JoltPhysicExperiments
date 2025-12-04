@@ -53,11 +53,10 @@ void create_object(GameMemory *memory, JPH::BodyInterface &body_interface, Objec
   {
   case ObjectType::GROUND:
   {
-    r32 half_size = params.size[0] * 0.5f;
     object->mesh = Mesh::create_ground(arena, gfx, params.size[0], params.color[0], params.color[1], params.color[2]);
-    // object->mesh = Mesh::create_box(arena, gfx, half_size, 0.1f, half_size, params.color[0], params.color[1], params.color[2]);
+    // object->mesh = Mesh::create_box(arena, gfx, params.size[0], 0.1f, params.size[0], params.color[0], params.color[1], params.color[2]);
 
-    JPH::BoxShapeSettings shape(JPH::Vec3(half_size, 0.1f, half_size));
+    JPH::BoxShapeSettings shape(JPH::Vec3(params.size[0], 0.1f, params.size[0]));
     shape_result = shape.Create();
     jolt_pos = JPH::Vec3(0, -0.1f, 0);
     break;

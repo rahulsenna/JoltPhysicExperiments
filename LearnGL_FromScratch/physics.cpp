@@ -3,35 +3,18 @@
 
 void draw_physics(GameMemory *memory, mat4x4 view, mat4x4 projection)
 {
-  memory->physics->debug_renderer->Clear();
-  const JPH::BodyInterface &body_interface = memory->physics->physics_system->GetBodyInterface();
-  RenderContext *ctx = &memory->render_contexts[0];
-
-  for (int i = 0; i < ctx->objects_count; ++i)
-  {
-    JPH::RMat44 transform = body_interface.GetWorldTransform(*ctx->objects[i].body_id);
-    const JPH::Shape *shape = body_interface.GetShape(*ctx->objects[i].body_id);
-
-    if (shape)
-    {
-      shape->Draw(memory->physics->debug_renderer, transform,
-                  JPH::Vec3::sReplicate(1.0f),
-                  JPH::Color::sGreen,
-                  false, // filled
-                  true); // wireframe
-    }
-  }
-
   JoltDebugRenderer *debug_renderer = memory->physics->debug_renderer;
+  debug_renderer->Clear();
+  memory->physics->physics_system->DrawBodies({.mDrawShapeWireframe = true}, debug_renderer);
 
-  if (debug_renderer->lines_count == 0)
+  if (debug_renderer->vertex_count == 0)
     return;
   DebugLineResources *resources = memory->physics->debug_line_resources;
   GraphicsAPI *gfx = memory->gfx;
 
   gfx->use_program(resources->shader);
   gfx->bind_vertex_array(resources->vao);
-  gfx->update_buffer_data(resources->vbo, debug_renderer->lines, debug_renderer->lines_count * sizeof(JoltDebugRenderer::DebugLine));
+  gfx->update_buffer_data(resources->vbo, debug_renderer->vertices, debug_renderer->vertex_count * sizeof(JoltDebugRenderer::Vertex));
 
   gfx->set_mat4(resources->shader, "view", (const r32 *)view);
   gfx->set_mat4(resources->shader, "projection", (const r32 *)projection);
@@ -39,7 +22,7 @@ void draw_physics(GameMemory *memory, mat4x4 view, mat4x4 projection)
   gfx->disable_depth_test();
   gfx->set_line_width(2.0f);
 
-  gfx->draw_line_arrays(0, debug_renderer->lines_count);
+  gfx->draw_line_arrays(0, debug_renderer->vertex_count);
   gfx->enable_depth_test();
 }
 
@@ -81,7 +64,7 @@ void init_physics(GameMemory *memory)
   // --------------[ Jolt Debug Render ]-----------------
   memory->physics->debug_renderer = new (push_struct(arena, JoltDebugRenderer)) JoltDebugRenderer();
   memory->physics->debug_renderer->InitializeLines(arena);
-  memory->physics->debug_draw_enabled = false;
+  memory->physics->debug_draw_enabled = true;
 
   memory->physics->debug_line_resources = push_struct(arena, DebugLineResources);
   Shader shader;

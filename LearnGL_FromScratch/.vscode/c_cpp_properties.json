@@ -9,7 +9,7 @@
                 "~/Developer/imgui/backends",
                 "~/Developer/JoltPhysics"
             ],
-            "defines": [],
+            "defines": ["JPH_OBJECT_STREAM", "JPH_DEBUG_RENDERER"],
             "cStandard": "c17",
             "cppStandard": "c++23",
             "intelliSenseMode": "macos-clang-arm64"

@@ -11,55 +11,55 @@
 class JoltDebugRenderer : public JPH::DebugRendererSimple
 {
 public:
-  struct DebugLine
+  struct Vertex
   {
     vec3 pos;
     vec4 color;
   };
 
-  JoltDebugRenderer() : lines(nullptr), lines_count(0), lines_capacity(0) { Initialize(); }
+  JoltDebugRenderer() : vertices(nullptr), vertex_count(0), vertex_capacity(0) { Initialize(); }
 
   void InitializeLines(Arena *arena, s32 capacity = 1000000)
   {
-    lines = push_array(arena, DebugLine, capacity);
-    lines_capacity = capacity;
-    lines_count = 0;
+    vertices = push_array(arena, Vertex, capacity);
+    vertex_capacity = capacity;
+    vertex_count = 0;
   }
 
   virtual void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override
   {
-    if (lines_count >= lines_capacity)
+    if (vertex_count >= vertex_capacity)
       return;
 
-    DebugLine *line = &lines[lines_count++];
-    line->pos[0] = (r32)inFrom.GetX();
-    line->pos[1] = (r32)inFrom.GetY();
-    line->pos[2] = (r32)inFrom.GetZ();
-    line->color[0] = inColor.r / 255.0f;
-    line->color[1] = inColor.g / 255.0f;
-    line->color[2] = inColor.b / 255.0f;
-    line->color[3] = inColor.a / 255.0f;
+    Vertex *point = &vertices[vertex_count++];
+    point->pos[0] = (r32)inFrom.GetX();
+    point->pos[1] = (r32)inFrom.GetY();
+    point->pos[2] = (r32)inFrom.GetZ();
+    point->color[0] = inColor.r / 255.0f;
+    point->color[1] = inColor.g / 255.0f;
+    point->color[2] = inColor.b / 255.0f;
+    point->color[3] = inColor.a / 255.0f;
 
-    line = &lines[lines_count++];
-    line->pos[0] = (r32)inTo.GetX();
-    line->pos[1] = (r32)inTo.GetY();
-    line->pos[2] = (r32)inTo.GetZ();
-    line->color[0] = inColor.r / 255.0f;
-    line->color[1] = inColor.g / 255.0f;
-    line->color[2] = inColor.b / 255.0f;
-    line->color[3] = inColor.a / 255.0f;
+    point = &vertices[vertex_count++];
+    point->pos[0] = (r32)inTo.GetX();
+    point->pos[1] = (r32)inTo.GetY();
+    point->pos[2] = (r32)inTo.GetZ();
+    point->color[0] = inColor.r / 255.0f;
+    point->color[1] = inColor.g / 255.0f;
+    point->color[2] = inColor.b / 255.0f;
+    point->color[3] = inColor.a / 255.0f;
   }
 
   virtual void DrawText3D(JPH::RVec3Arg inPosition, const std::string_view &inString, JPH::ColorArg inColor, r32 inHeight) override {}
 
   void Clear()
   {
-    lines_count = 0;
+    vertex_count = 0;
   }
 
-  DebugLine *lines;
-  s32 lines_count;
-  s32 lines_capacity;
+  Vertex *vertices;
+  s32 vertex_count;
+  s32 vertex_capacity;
 };
 
 #endif // JOLT_DEBUG_RENDERER_H
