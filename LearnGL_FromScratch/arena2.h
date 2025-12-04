@@ -8,9 +8,7 @@
 #ifndef ARENA_H
 #define ARENA_H
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
+#include "defines.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -22,21 +20,6 @@ extern "C"
 #define ARENA_ENABLE_FREE_LIST 1
 #endif
 
-    // Types
-    typedef uint8_t u8;
-    typedef uint32_t u32;
-    typedef uint64_t u64;
-    typedef uint64_t u64;
-    typedef int32_t b32;
-    typedef float r32;
-    typedef double r64;
-    typedef int32_t s32;
-    typedef int64_t s64;
-
-#define KB(n) ((u64)(n) << 10)
-#define MB(n) ((u64)(n) << 20)
-#define GB(n) ((u64)(n) << 30)
-#define TB(n) ((u64)(n) << 40)
 
 #define ARENA_HEADER_SIZE 128
 

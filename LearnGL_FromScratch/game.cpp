@@ -96,9 +96,8 @@ void create_object(GameMemory *memory, JPH::BodyInterface &body_interface, Objec
                                      params.color[0], params.color[1], params.color[2]);
     object->mesh->translate(params.loc[0], params.loc[1], params.loc[2]);
 
-    // Approximate cone as cylinder (Jolt doesn't have native cone)
-    JPH::CylinderShapeSettings shape(params.size[1] * 0.5f, params.size[0]);
-    shape_result = shape.Create();
+    JPH::ConvexHullShapeSettings convex_settings = object->mesh->create_convex_hull();
+    shape_result = convex_settings.Create();
     break;
   }
   }

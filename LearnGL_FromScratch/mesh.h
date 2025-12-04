@@ -4,19 +4,22 @@
 #include "graphics_api.h"
 #include "arena2.h"
 #include "linmath.h"
+#include "physics.h"
 
 struct Vertex
 {
-  r32 position[3];
-  r32 normal[3];
-  r32 color[3];
+  r32 *positions;
+  r32 *normals;
+  r32 *colors;
 };
 
 struct Mesh
 {
   // Opaque GPU handles (backend-agnostic)
   GraphicsVertexArray vao;
-  GraphicsBuffer vbo;
+  GraphicsBuffer position_vbo;
+  GraphicsBuffer normal_vbo;
+  GraphicsBuffer color_vbo;
   GraphicsBuffer ebo;
   s32 index_count;
 
@@ -26,13 +29,14 @@ struct Mesh
   s32 vertex_count;
   mat4x4 *model;
 
-  Mesh() : vao(nullptr), vbo(nullptr), ebo(nullptr),
+  Mesh() : vao(nullptr), position_vbo(nullptr), normal_vbo(nullptr), color_vbo(nullptr), ebo(nullptr),
            index_count(0), vertices(nullptr), indices(nullptr), vertex_count(0) {}
 
   void create(Arena *arena, Vertex *verts, s32 vert_count, u32 *inds, s32 ind_count, GraphicsAPI *gfx);
   void draw(GraphicsAPI *gfx) const;
   void destroy(GraphicsAPI *gfx);
   void translate(r32 x, r32 y, r32 z);
+  JPH::ConvexHullShapeSettings create_convex_hull();
 
   static Mesh *create_ground(Arena *arena, GraphicsAPI *gfx, r32 size, r32 r = 0.2f, r32 g = 0.3f, r32 b = 0.2f);
   static Mesh *create_box(Arena *arena, GraphicsAPI *gfx, r32 w, r32 h, r32 d, r32 r = 0.8f, r32 g = 0.2f, r32 b = 0.2f);

@@ -3,11 +3,11 @@
 
 #include "arena2.h"
 #include "linmath.h"
-#include "mesh.h"
 #include "shader.h"
 #include <time.h>
 
 
+struct Mesh;
 struct GraphicsAPI;
 struct PhysicsState;
 namespace JPH { class BodyID; }
