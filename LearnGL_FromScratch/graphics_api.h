@@ -61,6 +61,13 @@ struct GraphicsAPI
   void (*destroy_shader)(GraphicsShader shader);
   void (*destroy_program)(GraphicsProgram program);
   void (*destroy_vertex_array)(GraphicsVertexArray vao);
+  
+  // Debug line rendering functions
+  void (*enable_depth_test)();
+  void (*disable_depth_test)();
+  void (*set_line_width)(float width);
+  void (*update_buffer_data)(GraphicsBuffer buffer, const void *data, size_t size);
+  void (*draw_line_arrays)(s32 first, s32 count);
 };
 
 GraphicsAPI *create_graphics_api_opengl();

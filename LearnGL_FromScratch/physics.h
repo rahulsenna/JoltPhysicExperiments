@@ -15,6 +15,7 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include "jolt_arena_allocator.h"
+#include "jolt_debug_renderer_simple.h"
 
 namespace Layers
 {
@@ -80,6 +81,13 @@ public:
   }
 };
 
+struct DebugLineResources
+{
+  GraphicsProgram  shader;
+  GraphicsVertexArray vao;
+  GraphicsBuffer vbo;
+};
+
 typedef struct PhysicsState
 {
   JPH::Factory *factory_instance;
@@ -89,6 +97,10 @@ typedef struct PhysicsState
   ObjectVsBroadPhaseLayerFilterImpl *object_vs_broadphase_filter;
   ObjectLayerPairFilterImpl *object_vs_object_filter;
   JPH::PhysicsSystem *physics_system;
+
+  DebugLineResources *debug_line_resources;
+  JoltDebugRenderer *debug_renderer;
+  bool debug_draw_enabled;
 } PhysicsState;
 
 #endif

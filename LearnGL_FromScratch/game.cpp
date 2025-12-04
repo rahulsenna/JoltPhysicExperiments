@@ -6,7 +6,19 @@
 #include "shader.h"
 #include <stdio.h>
 #include <assert.h>
-#include "physics.h"
+#include "physics.cpp"
+
+extern "C"
+{
+  void *arena_push(Arena *arena, u64 size, u64 align, b32 zero) __attribute__((weak));
+  Temp temp_begin(Arena *arena) __attribute__((weak));
+  void temp_end(Temp temp) __attribute__((weak));
+
+
+  void *arena_push(Arena *arena, u64 size, u64 align, b32 zero) {}
+  Temp temp_begin(Arena *arena) {};
+  void temp_end(Temp temp) {};
+}
 
 static void compute_camera_basis(r32 yaw, r32 pitch, vec3 forward, vec3 right)
 {
@@ -43,6 +55,7 @@ void create_object(GameMemory *memory, JPH::BodyInterface &body_interface, Objec
   {
     r32 half_size = params.size[0] * 0.5f;
     object->mesh = Mesh::create_ground(arena, gfx, params.size[0], params.color[0], params.color[1], params.color[2]);
+    // object->mesh = Mesh::create_box(arena, gfx, half_size, 0.1f, half_size, params.color[0], params.color[1], params.color[2]);
 
     JPH::BoxShapeSettings shape(JPH::Vec3(half_size, 0.1f, half_size));
     shape_result = shape.Create();
@@ -54,7 +67,7 @@ void create_object(GameMemory *memory, JPH::BodyInterface &body_interface, Objec
     object->mesh = Mesh::create_box(arena, gfx, params.size[0], params.size[1], params.size[2], params.color[0], params.color[1], params.color[2]);
     object->mesh->translate(params.loc[0], params.loc[1], params.loc[2]);
 
-    JPH::BoxShapeSettings shape(JPH::Vec3(params.size[0] * 0.5f, params.size[1] * 0.5f, params.size[2] * 0.5f));
+    JPH::BoxShapeSettings shape(JPH::Vec3(params.size[0], params.size[1], params.size[2]));
     shape_result = shape.Create();
     break;
   }
@@ -111,38 +124,7 @@ extern "C"
     memory->yaw = 90.0f;
     memory->pitch = 0.0f;
 
-    // -------------[ Jolt ]----------------
-    memory->physics = push_struct(arena, PhysicsState);
-    memory->physics->factory_instance = new (push_struct(arena, JPH::Factory)) JPH::Factory();
-
-    JPH::RegisterDefaultAllocator();
-    JPH::Factory::sInstance = memory->physics->factory_instance;
-    JPH::RegisterTypes();
-
-    memory->physics->temp_allocator = new (push_struct(arena, JoltTempArenaAllocator)) JoltTempArenaAllocator(arena, 10 * 1024 * 1024);
-    memory->physics->job_system = new (push_struct(arena, JPH::JobSystemThreadPool))  JPH::JobSystemThreadPool(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1);
-    
-
-    memory->physics->broad_phase_layer_interface = new (push_struct(arena, BPLayerInterfaceImpl)) BPLayerInterfaceImpl();
-    memory->physics->object_vs_broadphase_filter = new (push_struct(arena, ObjectVsBroadPhaseLayerFilterImpl)) ObjectVsBroadPhaseLayerFilterImpl();
-    memory->physics->object_vs_object_filter = new (push_struct(arena, ObjectLayerPairFilterImpl)) ObjectLayerPairFilterImpl();
-
-    // Create physics system
-    const u32 max_bodies = 1024;
-    const u32 num_body_mutexes = 0; // Auto-detect
-    const u32 max_body_pairs = 1024;
-    const u32 max_contact_constraints = 1024;
-
-    memory->physics->physics_system = new (push_struct(arena, JPH::PhysicsSystem)) JPH::PhysicsSystem();
-    memory->physics->physics_system->Init(max_bodies, num_body_mutexes, max_body_pairs,
-                                 max_contact_constraints,
-                                 *memory->physics->broad_phase_layer_interface,
-                                 *memory->physics->object_vs_broadphase_filter,
-                                 *memory->physics->object_vs_object_filter);
-
-    memory->physics->physics_system->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
-    // -------------[ Jolt ]----------------
-
+    init_physics(memory);
 
     memory->render_context_count = 1;
     s32 r_idx = 0;
@@ -285,6 +267,8 @@ extern "C"
         ctx->objects[j].mesh->draw(gfx);
       }
     }
+    if (memory->physics->debug_draw_enabled)
+      draw_physics(memory, view, perspective);
   }
 
   void game_hot_reloaded(GameMemory *memory)

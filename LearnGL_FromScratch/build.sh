@@ -33,7 +33,7 @@ IMGUI_SOURCES="$IMGUI_ROOT/imgui.cpp \
 # Build
 echo "Building $OUTPUT..."
 $CXX $CXXFLAGS $DEFINES $INCLUDES $WARNINGS \
-    main.cpp graphics_api_gl.cpp shader.cpp \
+    main.cpp graphics_api_gl.cpp \
     $IMGUI_SOURCES \
     $LDFLAGS $LIBS \
     -o $OUTPUT

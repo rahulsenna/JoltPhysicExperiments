@@ -78,11 +78,11 @@ Mesh *Mesh::create_ground(Arena *arena, GraphicsAPI *gfx, r32 size, r32 r, r32 g
   vertices[3] = {{-size, 0, size}, {0, 1, 0}, {r, g, b}};
 
   indices[0] = 0;
-  indices[1] = 1;
-  indices[2] = 2;
+  indices[1] = 2;
+  indices[2] = 1;
   indices[3] = 0;
-  indices[4] = 2;
-  indices[5] = 3;
+  indices[4] = 3;
+  indices[5] = 2;
 
   Mesh *mesh = push_struct(arena, Mesh);
   mesh->create(arena, vertices, 4, indices, 6, gfx);

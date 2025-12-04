@@ -41,6 +41,7 @@ static bool gl_init(GLFWwindow *window)
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_CULL_FACE);
 
   printf("OpenGL Renderer: %s\n", glGetString(GL_RENDERER));
   printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
@@ -272,6 +273,35 @@ static void gl_draw_elements(s32 count)
   glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, 0);
 }
 
+static void opengl_enable_depth_test()
+{
+  glEnable(GL_DEPTH_TEST);
+}
+
+static void opengl_disable_depth_test()
+{
+  glDisable(GL_DEPTH_TEST);
+}
+
+static void opengl_set_line_width(float width)
+{
+  glLineWidth(width);
+}
+
+static void opengl_update_buffer_data(GraphicsBuffer buffer, const void *data, size_t size)
+{
+  GLBuffer *vbo = (GLBuffer *)buffer;
+  glBindBuffer(GL_ARRAY_BUFFER, vbo->id);
+  // glBufferData(GL_ARRAY_BUFFER, size, data, GL_DYNAMIC_DRAW);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, size, data);
+}
+
+static void gl_draw_line_arrays(s32 first, s32 count)
+{
+  glDrawArrays(GL_LINES, first, count);
+}
+
+
 // Global OpenGL API instance
 static GraphicsAPI s_opengl_api = {
     .init = gl_init,
@@ -306,6 +336,13 @@ static GraphicsAPI s_opengl_api = {
     .create_index_buffer = gl_create_index_buffer,
     .bind_index_buffer = gl_bind_index_buffer,
     .draw_elements = gl_draw_elements,
+
+
+    .enable_depth_test = opengl_enable_depth_test,
+    .disable_depth_test = opengl_disable_depth_test,
+    .set_line_width = opengl_set_line_width,
+    .update_buffer_data = opengl_update_buffer_data,
+    .draw_line_arrays = gl_draw_line_arrays,
 };
 
 GraphicsAPI *create_graphics_api_opengl()
